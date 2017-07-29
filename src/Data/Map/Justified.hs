@@ -8,7 +8,7 @@
 --
 -- = Description
 --
--- A wrapper around 'Data.Map' for shifting the burden of proof that a key
+-- A wrapper around "Data.Map"'s 'Data.Map.Map' for shifting the burden of proof that a key
 -- exists in a map from "lookup time" to "key creation time".
 --
 
