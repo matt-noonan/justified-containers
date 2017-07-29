@@ -29,6 +29,10 @@ module Data.Map.Justified (
     -- * Lookup
     , lookup
     , (!)
+
+    -- * Indexing
+    , findIndex
+    , elemAt
       
     ) where
 
@@ -62,7 +66,7 @@ newtype Key ph k = Key k deriving (Eq, Ord, Show)
 theKey :: Key ph k -> k
 theKey (Key k) = k
 
--- | Get the underlying 'Data.Map' out of a 'Map'.
+-- | Get the underlying "Data.Map" 'Data.Map' out of a 'Map'.
 theMap :: Map ph k v -> M.Map k v
 theMap (Map m) = m
 
@@ -93,12 +97,12 @@ withMap m f = f (Map m)
 --------------------------------------------------------------------}
 -- | /O(log n)/. Obtain evidence that the key is a member of the map.
 --
--- Where 'Data.Map' generally requires evidence that a key exists in a map
--- at every use of some functions (e.g. 'Data.Map.lookup'),
+-- Where "Data.Map" generally requires evidence that a key exists in a map
+-- at every use of some functions (e.g. "Data.Map"'s 'Data.Map.lookup'),
 -- 'Map' requires the evidence up-front. After it is known that a key can be
 -- found, there is no need for 'Maybe' types or run-time errors.
 --
--- The @Maybe value@ that has to be checked at every lookup in 'Data.Map'
+-- The @Maybe value@ that has to be checked at every lookup in "Data.Map"
 -- is then shifted to a @Maybe (Key ph k)@ that has to be checked in order
 -- to obtain evidence that a key is in the map.
 --
@@ -120,7 +124,7 @@ keys (Map m) = map Key (M.keys m)
   Lookup
 --------------------------------------------------------------------}
 -- | /O(log n)/. Find the value at a key. Unlike
--- 'Data.Map.(!)', this function is total and can not fail at runtime.
+-- "Data.Map"'s 'Data.Map.(!)', this function is total and can not fail at runtime.
 (!) :: Ord k => Map ph k v -> Key ph k -> v
 (!) = flip lookup
 
@@ -135,3 +139,26 @@ lookup (Key k) (Map m) = case M.lookup k m of
   Just value -> value
   Nothing    -> error "Data.Map.Justified has been subverted!"
 
+{--------------------------------------------------------------------
+  Indexing
+--------------------------------------------------------------------}
+{--------------------------------------------------------------------
+  Indexing
+--------------------------------------------------------------------}
+-- | /O(log n)/. Return the /index/ of a key, which is its zero-based index in
+-- the sequence sorted by keys. The index is a number from /0/ up to, but not
+-- including, the 'size' of the map. The index also carries a proof that it is
+-- valid for the map.
+--
+-- Unlike "Data.Map"'s 'Data.Map.findIndex', this function can not fail at runtime.
+
+findIndex :: Ord k => Key ph k -> Map ph k a -> Key ph Int
+findIndex (Key k) (Map m) = Key (M.findIndex k m)
+
+-- | /O(log n)/. Retrieve an element by its /index/, i.e. by its zero-based
+-- index in the sequence sorted by keys.
+--
+-- Unlike "Data.Map"'s 'Data.Map.elemAt', this function can not fail at runtime.
+
+elemAt :: Key ph Int -> Map ph k v -> (Key ph k, v)
+elemAt (Key n) (Map m) = let (k,v) = M.elemAt n m in (Key k, v)
