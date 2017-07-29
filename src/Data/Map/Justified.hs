@@ -26,9 +26,12 @@ module Data.Map.Justified (
     , member
     , keys
 
-    -- * Lookup
+    -- * Lookup and update
     , lookup
     , (!)
+    , adjust
+    , adjustWithKey
+    , reinsert
 
     -- * Indexing
     , findIndex
@@ -42,7 +45,7 @@ import qualified Data.Map as M
 {--------------------------------------------------------------------
   Map and Key types
 --------------------------------------------------------------------}
--- | A 'Data.Map' value that allows direct lookup of keys that
+-- | A "Data.Map" 'Data.Map.Map' wrapper that allows direct lookup of keys that
 -- are known to exist in the map.
 --
 -- Here, "direct lookup" means that once a key has been proven
@@ -121,7 +124,7 @@ keys (Map m) = map Key (M.keys m)
 
 
 {--------------------------------------------------------------------
-  Lookup
+  Lookup and update
 --------------------------------------------------------------------}
 -- | /O(log n)/. Find the value at a key. Unlike
 -- "Data.Map"'s 'Data.Map.(!)', this function is total and can not fail at runtime.
@@ -139,9 +142,36 @@ lookup (Key k) (Map m) = case M.lookup k m of
   Just value -> value
   Nothing    -> error "Data.Map.Justified has been subverted!"
 
-{--------------------------------------------------------------------
-  Indexing
---------------------------------------------------------------------}
+-- | Adjust the valid at a key, known to be in the map,
+-- using the given function.
+--
+-- Since the set of valid keys in the input map and output map
+-- are the same, keys that were valid for the input map remain
+-- valid for the output map.
+
+adjust :: Ord k => (v -> v) -> Key ph k -> Map ph k v -> Map ph k v
+adjust f (Key k) (Map m) = Map (M.adjust f k m)
+
+-- | Adjust the valid at a key, known to be in the map,
+-- using the given function.
+--
+-- Since the set of valid keys in the input map and output map
+-- are the same, keys that were valid for the input map remain
+-- valid for the output map.
+
+adjustWithKey :: Ord k => (k -> v -> v) -> Key ph k -> Map ph k v -> Map ph k v
+adjustWithKey f (Key k) (Map m) = Map (M.adjustWithKey f k m)
+
+-- | Replace the value at a key, known to be in the map.
+--
+-- Since the set of valid keys in the input map and output map
+-- are the same, keys that were valid for the input map remain
+-- valid for the output map.
+
+reinsert :: Ord k => Key ph k -> v -> Map ph k v -> Map ph k v
+reinsert (Key k) v (Map m) = Map (M.insert k v m)
+
+
 {--------------------------------------------------------------------
   Indexing
 --------------------------------------------------------------------}
