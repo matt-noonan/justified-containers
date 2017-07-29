@@ -21,6 +21,9 @@ module Data.Map.Justified (
 
     -- * Evaluation
     , withMap
+    , KeyInfo(..)
+    , MissingReference(..)
+    , withRecMap
 
     -- * Gathering evidence
     , member
@@ -41,6 +44,8 @@ module Data.Map.Justified (
 
 import Prelude hiding (lookup)
 import qualified Data.Map as M
+import Data.List (partition)
+import Control.Arrow ((&&&))
 
 {--------------------------------------------------------------------
   Map and Key types
@@ -94,6 +99,40 @@ theMap (Map m) = m
 
 withMap :: M.Map k v -> (forall ph. Map ph k v -> t) -> t
 withMap m f = f (Map m)
+
+data KeyInfo = Present | Missing deriving (Show, Eq, Ord)
+type MissingReference k f = (k, f (k, KeyInfo))
+
+-- | Evaluate an expression using justified key lookups into the given map,
+-- when the values can contain references back to keys in the map.
+--
+-- Each referenced key is checked to ensure that it can be found in the map.
+-- If all referenced keys are found, they are augmented with evidence and the
+-- given function is applied.
+-- If some referenced keys are missing, information about the missing references
+-- is generated instead.
+--
+-- > import qualified Data.Map as M
+-- >
+-- > data Cell ptr = Nil | Cons ptr ptr deriving (Functor, Foldable, Traversable)
+-- >
+-- > memory1 = M.fromList [(1, Cons 2 1), (2, Nil)]
+-- > withRecMap memory1 (const ()) -- Right ()
+-- >
+-- > memory2 = M.fromList [(1, Cons 2 3), (2, Nil)]
+-- > withRecMap memory2 (const ()) -- Left [(1, Cons (2,Present) (3,Missing))]
+
+withRecMap :: (Ord k, Traversable f)
+           => M.Map k (f k)
+           -> (forall ph. Map ph k (f (Key ph k)) -> t)
+           -> Either [MissingReference k f] t
+withRecMap m f =
+  case bad of
+    [] -> Right $ f (Map $ M.map (fmap Key) $ M.fromList ok)
+    _  -> Left (map (\(k,v) -> (k, fmap (id &&& locate) v)) bad)
+  where
+    (ok, bad) = partition (all ((== Present) . locate) . snd) (M.toList m)
+    locate k = if M.member k m then Present else Missing
 
 {--------------------------------------------------------------------
   Gathering evidence
