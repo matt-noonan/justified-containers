@@ -99,7 +99,7 @@ module Data.Map.Justified (
     -- * Evaluation
     , withMap
     , KeyInfo(..)
-    , MissingReference(..)
+    , MissingReference
     , withRecMap
 
     -- * Gathering evidence
@@ -180,7 +180,14 @@ theMap (Map m) = m
 withMap :: M.Map k v -> (forall ph. Map ph k v -> t) -> t
 withMap m f = f (Map m)
 
+-- | Information about whether a key is present or missing.
+-- See 'Data.Map.Justified.withRecMap' and "Data.Map.Justified.Tutorial"'s
+-- 'Data.Map.Justified.Tutorial.example4'.
 data KeyInfo = Present | Missing deriving (Show, Eq, Ord)
+
+-- | A description of what key/value-containing-keys pairs failed to be found.
+-- See 'Data.Map.Justified.withRecMap' and "Data.Map.Justified.Tutorial"'s
+-- 'Data.Map.Justified.Tutorial.example4'.
 type MissingReference k f = (k, f (k, KeyInfo))
 
 -- | Evaluate an expression using justified key lookups into the given map,
