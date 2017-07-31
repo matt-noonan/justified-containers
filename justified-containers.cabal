@@ -16,6 +16,8 @@ cabal-version:       >=1.10
 library
   hs-source-dirs:      src
   exposed-modules:     Data.Map.Justified
+                     , Data.Map.Justified.Tutorial
+  ghc-options:         -O2 -Wall
   build-depends:       base >= 4.7 && < 5
                      , containers                     
   default-language:    Haskell2010
