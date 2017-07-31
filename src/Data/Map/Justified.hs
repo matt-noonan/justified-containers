@@ -11,6 +11,83 @@
 -- A wrapper around "Data.Map"'s 'Data.Map.Map' for shifting the burden of proof that a key
 -- exists in a map from "lookup time" to "key creation time".
 --
+-- == Motivation: "Data.Map" and 'Maybe' values
+--
+-- Suppose you have a key-value mapping using "Data.Map"'s type @Map k v@. Anybody making
+-- use of @Map k v@ to look up or modify a value must take into account the possibility
+-- that the given key is not present.
+--
+-- In "Data.Map", there are two strategies for dealing with absent keys:
+--
+--   1. Cause a runtime error (e.g. "Data.Map"'s 'Data.Map.!' when the key is absent)
+--
+--   2. Return a 'Maybe' value (e.g. "Data.Map"'s 'Data.Map.lookup')
+--
+-- The first option introduces partial functions, so is not very palatable. But what is
+-- wrong with the second option?
+--
+-- To understand the problem with returning a 'Maybe' value, let's ask what returning
+-- @Maybe v@ from @lookup :: k -> Map k v -> Maybe v@ really does for us. By returning
+-- a @Maybe v@ value, @lookup key table@ is saying "Your program must account
+-- for the possibility that @key@ cannot be found in @table@. I will ensure that you
+-- account for this possibility by forcing you to handle the 'Nothing' case."
+-- In effect, "Data.Map" is requiring the user to prove they have handled the
+-- possibility that a key is absent whenever they use the 'Data.Map.lookup' function.
+--
+-- == Laziness (the bad kind)
+--
+-- Every programmer has probably had the experience of knowing, somehow, that a certain
+-- key is going to be present in a map. In this case, the @Maybe v@ feels like a burden:
+-- I already /know/ that this key is in the map, why should I handle the 'Nothing' case?
+--
+-- In this situation, it is tempting to reach for the partial function 'Data.Maybe.fromJust',
+-- or a pattern match like @Nothing -> error "The impossible happened!"@. But as parts of
+-- the program are changed over time, you may find the impossible has become possible after
+-- all (or perhaps you'll see the dreaded and unhelpful @*** Exception: Maybe.fromJust: Nothing@)
+--
+-- It is tempting to reach for partial functions or "impossible" runtime errors here, because
+-- the programmer has proven that the key is a member of the map in some other way. They
+-- know that 'Data.Map.lookup' should return a 'Just v' --- but the /compiler/ doesn't know this!
+--
+-- The idea behind "Data.Map.Justified" is to encode the programmer's knowledge that a key
+-- is present, within the type system where it can be checked at compile-time. Once a key
+-- is known to be present, 'Data.Map.Justified.lookup' will never fail. Your justification
+-- removes the 'Just'!
+--
+-- == How it works
+--
+-- Evidence that a key can indeed be found in a map is carried by a phantom type parameter @ph@
+-- shared by both the 'Data.Map.Justified.Map' and 'Data.Map.Justified.Key' types. If you are
+-- able to get your hands on a value of type @Key ph k@, then you must have already proven that
+-- the key is present in /any/ value of type @Map ph k v@.
+--
+-- The @Key ph k@ type is simply a @newtype@ wrapper around @k@, but the phantom type @ph@ allows
+-- @Key ph k@ to represent both /a key of type @k@/ __and__ /a proof that the key is present in
+-- maps of type @Map ph k v@/.
+--
+-- There are several ways to prove that a key belongs to a map, but the simplest is to just use
+-- "Data.Map.Justified"'s 'Data.Map.Justified.member' function. In "Data.Map", 'Data.Map.member'
+-- has the type
+--
+-- @member :: Ord k => k -> Map k v -> Bool@
+--
+-- and reports whether or not the key can be found in the map. In "Data.Map.Justified",
+-- 'Data.Map.Member' has the type
+--
+-- @member :: Ord k => k -> Map ph k v -> Maybe (Key ph k)@
+--
+-- Instead of a boolean, 'Data.Map.Justified.member' either says "the key is not present"
+-- ('Nothing'), or gives back the same key, /augmented with evidence that they key/
+-- /is present/. This key-plus-evidence can then be used to do any number of 'Maybe'-free
+-- operations on the map.
+--
+-- "Data.Map.Justified" uses the same rank-2 polymorphism trick used in the 'ST' monad to
+-- ensure that the @ph@ phantom type can not be extracted; in effect, the proof that a key is
+-- present can't leak to contexts where the proof would no longer be valid.
+--
+-- == Tutorial
+--
+-- See "Data.Map.Justified.Tutorial" for usage examples and FAQs.
 
 module Data.Map.Justified (
     -- * Map and Key types
@@ -39,8 +116,13 @@ module Data.Map.Justified (
     -- * Indexing
     , findIndex
     , elemAt
-      
+
+    -- * Utilities
+    , tie
+
     ) where
+
+import GHC.Exts
 
 import Prelude hiding (lookup)
 import qualified Data.Map as M
@@ -166,7 +248,7 @@ keys (Map m) = map Key (M.keys m)
   Lookup and update
 --------------------------------------------------------------------}
 -- | /O(log n)/. Find the value at a key. Unlike
--- "Data.Map"'s 'Data.Map.(!)', this function is total and can not fail at runtime.
+-- "Data.Map"'s 'Data.Map.!', this function is total and can not fail at runtime.
 (!) :: Ord k => Map ph k v -> Key ph k -> v
 (!) = flip lookup
 
@@ -231,3 +313,14 @@ findIndex (Key k) (Map m) = Key (M.findIndex k m)
 
 elemAt :: Key ph Int -> Map ph k v -> (Key ph k, v)
 elemAt (Key n) (Map m) = let (k,v) = M.elemAt n m in (Key k, v)
+
+{--------------------------------------------------------------------
+  Utilities
+--------------------------------------------------------------------}
+
+-- | Build a value by "tying the knot" according to the references in the map.
+tie :: (Functor f, Ord k) => (f a -> a) ->  Map ph k (f (Key ph k)) -> Key ph k -> a
+tie phi m = go
+  where
+    go = (`lookup` table)
+    table = fmap (phi . fmap go) m
