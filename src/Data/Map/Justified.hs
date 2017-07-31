@@ -122,8 +122,6 @@ module Data.Map.Justified (
 
     ) where
 
-import GHC.Exts
-
 import Prelude hiding (lookup)
 import qualified Data.Map as M
 import Data.List (partition)
