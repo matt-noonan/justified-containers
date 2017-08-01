@@ -18,38 +18,37 @@ of the operations return a `Maybe` value.
 
 See the Data.Map.Justified.Tutorial module for usage examples.
 
-`
- withMap test_table $ \\table -> do
- 
-   case member 1 table of
+```haskell
+    withMap test_table $ \\table -> do
+    
+      case member 1 table of
+    
+        Nothing  -> putStrLn `Sorry, I couldnt prove that the key is present.`
+    
+        Just key -> do
+          -- In this do-block, \key\ represents the key 1, but carries type-level
+          -- evidence that the key is present. Lookups and updates can now proceed
+          -- without the possibility of error.
+          putStrLn (`Found key: ` ++ show key)
+    
+          -- lookup returns a value directly, not a \Maybe\!
+          putStrLn (`Value for key: ` ++ lookup key table)
+    
+          -- If you update an already-mapped value, the set of valid keys does
+          -- not change. So the evidence that \key\ could be found in \table\
+          -- is still sufficient to ensure that \key\ can be found in the updated
+          -- table as well.
+          let table = reinsert key `howdy` table
+          putStrLn (`Value for key in updated map: ` ++ lookup key table)
+```
 
-     Nothing  -> putStrLn `Sorry, I couldnt prove that the key is present.`
-
-     Just key -> do
-       -- In this do-block, \key\ represents the key 1, but carries type-level
-       -- evidence that the key is present. Lookups and updates can now proceed
-       -- without the possibility of error.
-       putStrLn (`Found key: ` ++ show key)
- 
-       -- lookup returns a value directly, not a \Maybe\!
-       putStrLn (`Value for key: ` ++ lookup key table)
- 
-       -- If you update an already-mapped value, the set of valid keys does
-       -- not change. So the evidence that \key\ could be found in \table\
-       -- is still sufficient to ensure that \key\ can be found in the updated
-       -- table as well.
-       let table = reinsert key `howdy` table
-       putStrLn (`Value for key in updated map: ` ++ lookup key table)
-`
 Output:
 
-`
- Found key: Key 1
- Value for key: hello
- Value for key in updated map: howdy
-`
+    Found key: Key 1
+    Value for key: hello
+    Value for key in updated map: howdy
 
-** Motivation: `Data.Map` and `Maybe` values
+## Motivation: `Data.Map` and `Maybe` values
 
 Suppose you have a key-value mapping using `Data.Map`s type `Data.Map.Map k v`. Anybody making
 use of `Data.Map.Map k v` to look up or modify a value must take into account the possibility
@@ -66,13 +65,13 @@ wrong with the second option?
 
 To understand the problem with returning a `Maybe` value, lets ask what returning
 `Maybe v` from `Data.Map.lookup :: k -> Map k v -> Maybe v` really does for us. By returning
-a `Maybe v` value, `lookup key table` is saying `Your program must account
+a `Maybe v` value, `lookup key table` is saying "Your program must account
 for the possibility that `key` cannot be found in `table`. I will ensure that you
-account for this possibility by forcing you to handle the `Nothing` case.`
+account for this possibility by forcing you to handle the `Nothing` case."
 In effect, `Data.Map` is requiring the user to prove they have handled the
 possibility that a key is absent whenever they use the `Data.Map.lookup` function.
 
-** Laziness (the bad kind)
+## Laziness (the bad kind)
 
 Every programmer has probably had the experience of knowing, somehow, that a certain
 key is going to be present in a map. In this case, the `Maybe v` feels like a burden:
@@ -92,7 +91,7 @@ is present *within the type system*, where it can be checked at compile-time. On
 is known to be present, `Data.Map.Justified.lookup` will never fail. Your justification
 removes the `Just`!
 
-* How it works
+# How it works
 
 Evidence that a key can indeed be found in a map is carried by a phantom type parameter `ph`
 shared by both the `Data.Map.Justified.Map` and `Data.Map.Justified.Key` types. If you are
