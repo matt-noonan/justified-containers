@@ -112,6 +112,7 @@ module Data.Map.Justified (
     , adjust
     , adjustWithKey
     , reinsert
+    , inserting
 
     -- * Indexing
     , findIndex
@@ -297,6 +298,20 @@ adjustWithKey f (Key k) (Map m) = Map (M.adjustWithKey f k m)
 reinsert :: Ord k => Key ph k -> v -> Map ph k v -> Map ph k v
 reinsert (Key k) v (Map m) = Map (M.insert k v m)
 
+-- | Insert a value for a key that is /not/ known to be in the map,
+-- evaluating the updated map with the given continuation.
+--
+-- The continuation is given both a 'Data.Map.Justified.Map' with a
+-- /different phantom type/, plus a function that can be used to
+-- convert evidence that a key exists in the original map to
+-- evidence that a key exists in the new map.
+inserting :: Ord k
+          => k
+          -> v
+          -> Map ph k v
+          -> (forall ph'. (Key ph' k, Key ph k -> Key ph' k, Map ph' k v) -> t)
+          -> t
+inserting k v (Map m) cont = cont (Key k, \(Key key) -> Key key, Map (M.insert k v m))
 
 {--------------------------------------------------------------------
   Indexing

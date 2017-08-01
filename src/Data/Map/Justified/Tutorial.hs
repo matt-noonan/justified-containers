@@ -204,6 +204,47 @@ example3 = withMap test_table $ \table -> do
 
   return ()
 
+-- | What if your set of keys can change over time?
+--
+-- If you were to insert a new key into a map, evidence that a key
+-- exists is in the old map is no longer equivalent to evidence that
+-- a key exists in the new map.
+--
+-- On the other hand, we know that if some @key@ exists in the old map,
+-- then @key@ must still exist in the new map. So there should be a
+-- way of "upgrading" evidence from the old map to the new. Furthermore,
+-- we know that the key we just added must be in the new map.
+--
+-- The 'Data.Map.Justified.inserting' function inserts a value into a map
+-- and feeds the new map into a continuation, along with the "upgrade" and
+-- "new key" data.
+--
+-- @
+--  example4 = withMap test_table $ \table -> do
+--    inserting 3 "NEW" table $ \(newKey, upgrade, table') -> do
+--      forM_ (keys table) $ \key -> do
+--        putStrLn (show key ++ " maps to " ++ table  ! key ++ " in the old table.")
+--        putStrLn (show key ++ " maps to " ++ table' ! (upgrade key) ++ " in the new table.")
+--      putStrLn ("Also, the new table maps " ++ show newKey ++ " to " ++ table' ! newKey)
+-- @
+-- Output:
+--
+-- @
+--  Key 1 maps to hello in the old table.
+--  Key 1 maps to hello in the new table.
+--  Key 2 maps to world in the old table.
+--  Key 2 maps to world in the new table.
+--  Also, the new table maps Key 3 to NEW
+-- @
+
+example4 :: IO ()
+example4 = withMap test_table $ \table -> do
+  inserting 3 "NEW" table $ \(newKey, upgrade, table') -> do
+    forM_ (keys table) $ \key -> do
+      putStrLn (show key ++ " maps to " ++ table  ! key ++ " in the old table.")
+      putStrLn (show key ++ " maps to " ++ table' ! (upgrade key) ++ " in the new table.")
+    putStrLn ("Also, the new table maps " ++ show newKey ++ " to " ++ table' ! newKey)
+    
 -- | The next example uses a directed graph, defined by this adjacency list.
 --
 -- @
@@ -242,7 +283,7 @@ adjacencies = M.fromList [ (1, [2,3]), (2, [1,5,3]), (3, [4]), (4, [3, 1]), (5, 
 -- of where the missing keys are.
 --
 -- @
---  example4 = do
+--  example5 = do
 --     -- Print out the nodes in a graph 
 --     putStrLn ("Finding nodes in the directed graph " ++ show adjacencies)
 --     trial adjacencies
@@ -271,8 +312,8 @@ adjacencies = M.fromList [ (1, [2,3]), (2, [1,5,3]), (3, [4]), (4, [3, 1]), (5, 
 --    The following edges are missing targets:
 --      4 -> 6
 -- @
-example4 :: IO ()
-example4 = do
+example5 :: IO ()
+example5 = do
    -- Print out the nodes in a graph 
    putStrLn ("Finding nodes in the directed graph " ++ show adjacencies)
    trial adjacencies
