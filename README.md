@@ -1,5 +1,5 @@
 # justified-containers
-Standard containers, with keys that carry evidence of their own presence.
+Keyed container types with type-checked proofs of key presence.
 
 # Description
 

@@ -246,7 +246,9 @@ theMap (Map m) = m
 -- >     Nothing -> putStrLn "Missing key 3."
 -- >     Just k  -> putStrLn ("Found " ++ show k ++ " with value " ++ lookup k m)
 
-withMap :: M.Map k v -> (forall ph. Map ph k v -> t) -> t
+withMap :: M.Map k v -- ^ The map to use as input
+        -> (forall ph. Map ph k v -> t) -- ^ The computation to apply
+        -> t -- ^ The resulting value
 withMap m cont = cont (Map m)
 
 -- | Like @'withMap'@, but begin with a singleton map taking @k@ to @v@.
@@ -291,9 +293,9 @@ type MissingReference k f = (k, f (k, KeyInfo))
 --
 -- See @'Data.Map.Justified.Tutorial.example5'@ for more usage examples.
 withRecMap :: (Ord k, Traversable f)
-           => M.Map k (f k)
-           -> (forall ph. Map ph k (f (Key ph k)) -> t)
-           -> Either [MissingReference k f] t
+           => M.Map k (f k) -- ^ A map with key references
+           -> (forall ph. Map ph k (f (Key ph k)) -> t) -- ^ The checked continuation
+           -> Either [MissingReference k f] t -- ^ Resulting value, or failure report.
 withRecMap m cont =
   case bad of
     [] -> Right $ cont (Map $ M.map (fmap Key) $ M.fromList ok)
@@ -431,10 +433,10 @@ reinsert (Key k) v (Map m) = Map (M.insert k v m)
 --
 -- See @'Data.Map.Justified.Tutorial.example4'@ for more usage examples.
 inserting :: Ord k
-          => k
-          -> v
-          -> Map ph k v
-          -> (forall ph'. (Key ph' k, Key ph k -> Key ph' k, Map ph' k v) -> t)
+          => k -- ^ key to insert at
+          -> v -- ^ value to insert
+          -> Map ph k v -- ^ initial map
+          -> (forall ph'. (Key ph' k, Key ph k -> Key ph' k, Map ph' k v) -> t) -- ^ continuation
           -> t
 inserting k v (Map m) cont = cont (Key k, \(Key key) -> Key key, Map (M.insert k v m))
 
@@ -457,11 +459,11 @@ inserting k v (Map m) cont = cont (Key k, \(Key key) -> Key key, Map (M.insert k
 -- > withMap (M.fromList [(5,"a"), (3,"b")]) (theMap . insertingWith (++) 5) == M.fromList [(3,"b"), (5,"xxxa")]
 -- > withMap (M.fromList [(5,"a"), (3,"b")]) (theMap . insertingWith (++) 7) == M.fromList [(3,"b"), (5,"a"), (7,"xxx")]
 insertingWith :: Ord k
-              => (v -> v -> v)
-              -> k
-              -> v
-              -> Map ph k v
-              -> (forall ph'. (Key ph' k, Key ph k -> Key ph' k, Map ph' k v) -> t)
+              => (v -> v -> v) -- ^ combining function for existing keys
+              -> k -- ^ key to insert at
+              -> v -- ^ value to insert
+              -> Map ph k v -- ^ initial map
+              -> (forall ph'. (Key ph' k, Key ph k -> Key ph' k, Map ph' k v) -> t) -- ^ continuation
               -> t
 insertingWith f k v (Map m) cont = cont (Key k, \(Key key) -> Key key, Map (M.insertWith f k v m))
                                          
@@ -483,9 +485,9 @@ insertingWith f k v (Map m) cont = cont (Key k, \(Key key) -> Key key, Map (M.in
 --   3. The updated @'Data.Map.Justified.Map'@, with a /different phantom type/.
 --
 unioning :: Ord k
-         => Map phL k v
-         -> Map phR k v
-         -> (forall ph'. (Key phL k -> Key ph' k, Key phR k -> Key ph' k, Map ph' k v) -> t)
+         => Map phL k v -- ^ left-hand map
+         -> Map phR k v -- ^ right-hand map
+         -> (forall ph'. (Key phL k -> Key ph' k, Key phR k -> Key ph' k, Map ph' k v) -> t) -- ^ continuation
          -> t
 unioning (Map mapL) (Map mapR) cont = cont (\(Key key) -> Key key,
                                             \(Key key) -> Key key,
@@ -494,10 +496,10 @@ unioning (Map mapL) (Map mapR) cont = cont (\(Key key) -> Key key,
 -- | @'unioningWith' f@ is the same as @'unioning'@, except that @f@ is used to
 -- combine values that correspond to keys found in both maps.
 unioningWith :: Ord k
-             => (v -> v -> v)
-             -> Map phL k v
-             -> Map phR k v
-             -> (forall ph'. (Key phL k -> Key ph' k, Key phR k -> Key ph' k, Map ph' k v) -> t)
+             => (v -> v -> v) -- ^ combining function for intersection
+             -> Map phL k v -- ^ left-hand map
+             -> Map phR k v -- ^ right-hand map
+             -> (forall ph'. (Key phL k -> Key ph' k, Key phR k -> Key ph' k, Map ph' k v) -> t) -- ^ continuation
              -> t
 unioningWith f (Map mapL) (Map mapR) cont = cont (\(Key key) -> Key key,
                                                   \(Key key) -> Key key,
@@ -506,10 +508,10 @@ unioningWith f (Map mapL) (Map mapR) cont = cont (\(Key key) -> Key key,
 -- | @'unioningWithKey' f@ is the same as @'unioningWith' f@, except that @f@ also
 -- has access to the key and evidence that it is present in both maps.
 unioningWithKey :: Ord k
-                => (Key phL k -> Key phR k -> v -> v -> v)
-                -> Map phL k v
-                -> Map phR k v
-                -> (forall ph'. (Key phL k -> Key ph' k, Key phR k -> Key ph' k, Map ph' k v) -> t)
+                => (Key phL k -> Key phR k -> v -> v -> v) -- ^ combining function for intersection, using key evidence
+                -> Map phL k v -- ^ left-hand map
+                -> Map phR k v -- ^ right-hand map
+                -> (forall ph'. (Key phL k -> Key ph' k, Key phR k -> Key ph' k, Map ph' k v) -> t) -- ^ continuation
                 -> t
 unioningWithKey f (Map mapL) (Map mapR) cont = cont (\(Key key) -> Key key,
                                                      \(Key key) -> Key key,
@@ -531,8 +533,8 @@ mapWithKey f (Map m) = Map (M.mapWithKey f' m)
 -- | /O(n)/. As in @'Data.Map.traverse'@: traverse the map, but give the
 -- traversing function access to the key associated with each value.
 traverseWithKey :: Applicative t
-                => (Key ph k -> a -> t b)
-                -> Map ph k a
+                => (Key ph k -> a -> t b) -- ^ traversal function
+                -> Map ph k a -- ^ the map to traverse
                 -> t (Map ph k b)
 traverseWithKey f (Map m) = fmap Map (M.traverseWithKey f' m)
   where f' k = f (Key k)
@@ -573,9 +575,9 @@ mapAccumWithKey f a (Map m) = fmap Map (M.mapAccumWithKey f' a m)
 --
 --
 mappingKeys :: Ord k2
-            => (k1 -> k2)
-            -> Map ph k1 v
-            -> (forall ph'. (Key ph k1 -> Key ph' k2, Map ph' k2 v) -> t)
+            => (k1 -> k2) -- ^ key-mapping function
+            -> Map ph k1 v -- ^ initial map
+            -> (forall ph'. (Key ph k1 -> Key ph' k2, Map ph' k2 v) -> t) -- ^ continuation
             -> t
 mappingKeys f (Map m) cont = cont (\(Key k) -> Key (f k), Map (M.mapKeys f m))
 
@@ -584,9 +586,9 @@ mappingKeys f (Map m) cont = cont (\(Key k) -> Key (f k), Map (M.mapKeys f m))
 -- evidence that the input key belongs to the original map.
 --
 mappingKnownKeys :: Ord k2
-            => (Key ph k1 -> k2)
-            -> Map ph k1 v
-            -> (forall ph'. (Key ph k1 -> Key ph' k2, Map ph' k2 v) -> t)
+            => (Key ph k1 -> k2) -- ^ key-and-evidence-mapping function
+            -> Map ph k1 v -- ^ initial map
+            -> (forall ph'. (Key ph k1 -> Key ph' k2, Map ph' k2 v) -> t) -- ^ continuation
             -> t
 mappingKnownKeys f (Map m) cont = cont (Key . f, Map (M.mapKeys f' m))
   where f' k = f (Key k)
@@ -596,10 +598,10 @@ mappingKnownKeys f (Map m) cont = cont (Key . f, Map (M.mapKeys f' m))
 -- two or more keys from the original map correspond to the same key in the
 -- final map.
 mappingKeysWith :: Ord k2
-                => (v -> v -> v)
-                -> (k1 -> k2)
-                -> Map ph k1 v
-                -> (forall ph'. (Key ph k1 -> Key ph' k2, Map ph' k2 v) -> t)
+                => (v -> v -> v) -- ^ value-combining function
+                -> (k1 -> k2) -- ^ key-mapping function
+                -> Map ph k1 v -- ^ initial map
+                -> (forall ph'. (Key ph k1 -> Key ph' k2, Map ph' k2 v) -> t) -- ^ continuation
                 -> t
 mappingKeysWith op f (Map m) cont = cont (\(Key k) -> Key (f k), Map (M.mapKeysWith op f m))
 
@@ -608,10 +610,10 @@ mappingKeysWith op f (Map m) cont = cont (\(Key k) -> Key (f k), Map (M.mapKeysW
 -- two or more keys from the original map correspond to the same key in the
 -- final map.
 mappingKnownKeysWith :: Ord k2
-                => (v -> v -> v)
-                -> (Key ph k1 -> k2)
-                -> Map ph k1 v
-                -> (forall ph'. (Key ph k1 -> Key ph' k2, Map ph' k2 v) -> t)
+                => (v -> v -> v) -- ^ value-combining function
+                -> (Key ph k1 -> k2) -- ^ key-plus-evidence-mapping function
+                -> Map ph k1 v -- ^ initial map
+                -> (forall ph'. (Key ph k1 -> Key ph' k2, Map ph' k2 v) -> t) -- ^ continuation
                 -> t
 mappingKnownKeysWith op f (Map m) cont = cont (Key . f, Map (M.mapKeysWith op f' m))
   where f' k = f (Key k)
@@ -674,7 +676,11 @@ elemAt (Key n) (Map m) = let (k,v) = M.elemAt n m in (Key k, v)
 --------------------------------------------------------------------}
 
 -- | Build a value by "tying the knot" according to the references in the map.
-tie :: (Functor f, Ord k) => (f a -> a) ->  Map ph k (f (Key ph k)) -> Key ph k -> a
+tie :: (Functor f, Ord k)
+    => (f a -> a) -- ^ folding function
+    -> Map ph k (f (Key ph k)) -- ^ map with recursive key references
+    -> Key ph k
+    -> a
 tie phi m = go
   where
     go = (`lookup` table)
