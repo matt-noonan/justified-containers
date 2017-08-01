@@ -301,10 +301,12 @@ reinsert (Key k) v (Map m) = Map (M.insert k v m)
 -- | Insert a value for a key that is /not/ known to be in the map,
 -- evaluating the updated map with the given continuation.
 --
--- The continuation is given both a 'Data.Map.Justified.Map' with a
--- /different phantom type/, plus a function that can be used to
--- convert evidence that a key exists in the original map to
--- evidence that a key exists in the new map.
+-- The continuation is given three things:
+--   1. A proof that the inserted key exists in the new map,
+--   2. A function that can be used to convert evidence that a key
+--      exists in the original map, to evidence that the key exists in
+--      the upgraded map, and
+--   3. The upgraded 'Data.Map.Justified.Map', with a /different phantom type/.
 inserting :: Ord k
           => k
           -> v
