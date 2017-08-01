@@ -1,7 +1,9 @@
 name:                justified-containers
 version:             0.1.0.0
--- synopsis:
--- description:
+synopsis:            Keyed container types with verified keys.
+description:         This package contains wrappers around standard container types,
+                     that provide guarantees about the presence of keys within the
+                     container.
 homepage:            https://github.com/matt-noonan/justified-containers
 license:             BSD2
 license-file:        LICENSE
