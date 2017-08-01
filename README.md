@@ -19,19 +19,19 @@ of the operations return a `Maybe` value.
 See the `Data.Map.Justified.Tutorial` module for usage examples.
 
 ```haskell
-    withMap test_table $ \\table -> do
+    withMap test_table $ \table -> do
     
       case member 1 table of
     
         Nothing  -> putStrLn "Sorry, I couldnt prove that the key is present."
     
         Just key -> do
-          -- In this do-block, \key\ represents the key 1, but carries type-level
+          -- In this do-block, 'key' represents the key 1, but carries type-level
           -- evidence that the key is present. Lookups and updates can now proceed
           -- without the possibility of error.
           putStrLn ("Found key: " ++ show key)
     
-          -- lookup returns a value directly, not a \Maybe\!
+          -- lookup returns a value directly, not a 'Maybe'!
           putStrLn ("Value for key: " ++ lookup key table)
     
           -- If you update an already-mapped value, the set of valid keys does
