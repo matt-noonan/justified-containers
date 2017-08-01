@@ -38,8 +38,8 @@ See the `Data.Map.Justified.Tutorial` module for usage examples.
           -- not change. So the evidence that 'key' could be found in 'table'
           -- is still sufficient to ensure that 'key' can be found in the updated
           -- table as well.
-          let table = reinsert key "howdy" table
-          putStrLn ("Value for key in updated map: " ++ lookup key table)
+          let table' = reinsert key "howdy" table
+          putStrLn ("Value for key in updated map: " ++ lookup key table')
 ```
 
 Output:
