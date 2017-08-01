@@ -44,26 +44,26 @@ import Control.Monad (forM_)
 test_table :: M.Map Int String
 test_table = M.fromList [ (1, "hello"), (2, "world") ]
 
--- | This example shows how the 'Data.Map.Justified.member'
+-- | This example shows how the @'Data.Map.Justified.member'@
 -- function can be used to obtain a key whose type has been
 -- augmented by a proof that the key is present in maps of a
 -- certain type.
 --
--- Where "Data.Map" may use a 'Maybe' type to ensure that
+-- Where "Data.Map" may use a @'Maybe'@ type to ensure that
 -- the user handles missing keys when performing a lookup,
--- here we use the 'Maybe' type to either tell the user
--- that a key is missing (by returning 'Nothing'), or
+-- here we use the @'Maybe'@ type to either tell the user
+-- that a key is missing (by returning @'Nothing'@), or
 -- actually give back evidence of the key's presence
 -- (by returning @Just known_key@)
 --
--- The 'Data.Map.Justified.withMap' function is used to
--- plumb a "Data.Map" 'Data.Map.Map' into a function that
--- expects a "Data.Map.Justified" 'Data.Map.Justified.Map'.
+-- The @'Data.Map.Justified.withMap'@ function is used to
+-- plumb a "Data.Map" @'Data.Map.Map'@ into a function that
+-- expects a "Data.Map.Justified" @'Data.Map.Justified.Map'@.
 -- In the code below, you can think of @table@ as @test_table@,
 -- enhanced with the ability to use verified keys.
 --
 -- You can get from @table@ back to @test_table@ using the
--- function 'Data.Map.Justified.theMap'.
+-- function @'Data.Map.Justified.theMap'@.
 --
 -- @
 --  example1 = withMap test_table $ \\table -> do
@@ -104,10 +104,10 @@ example1 = withMap test_table $ \table -> do
 -- "Data.Map.Justified" has several functions that are similar
 -- to ones found in "Data.Map" that operate over verified keys.
 -- In this example, notice that we can extract values directly
--- from the map using 'Data.Map.Justified.lookup'; since we already
+-- from the map using @'Data.Map.Justified.lookup'@; since we already
 -- proved that the key is present when we obtained a @Key ph k@
--- value, 'Data.Map.Justified.lookup' does not need to return a
--- 'Maybe' value.
+-- value, @'Data.Map.Justified.lookup'@ does not need to return a
+-- @'Maybe'@ value.
 --
 -- @
 --  example2 = withMap test_table $ \\table -> do
@@ -215,7 +215,7 @@ example3 = withMap test_table $ \table -> do
 -- way of "upgrading" evidence from the old map to the new. Furthermore,
 -- we know that the key we just added must be in the new map.
 --
--- The 'Data.Map.Justified.inserting' function inserts a value into a map
+-- The @'Data.Map.Justified.inserting'@ function inserts a value into a map
 -- and feeds the new map into a continuation, along with the "upgrade" and
 -- "new key" data.
 --
@@ -274,12 +274,12 @@ adjacencies = M.fromList [ (1, [2,3]), (2, [1,5,3]), (3, [4]), (4, [3, 1]), (5, 
 --                                   |
 --   (each neighbor should carry a proof that they are also in the map)
 -- @
--- You can do this via 'Data.Map.Justified.withRecMap', which converts each
--- key reference of type @k@ in your map to a verified key of type @Key ph k@.
+-- You can do this via @'Data.Map.Justified.withRecMap'@, which converts each
+-- key reference of type @k@ in your map to a verified key of type @'Key' ph k@.
 --
--- But what if a referenced key really is missing from the map? 'Data.Map.Justified.withRecMap'
--- returns an 'Either' value to represent failure; if a key is missing, then the
--- result will be a value of the form @Left problem@, where @problem@ is an explanation
+-- But what if a referenced key really is missing from the map? @'Data.Map.Justified.withRecMap'@
+-- returns an @'Either'@ value to represent failure; if a key is missing, then the
+-- result will be a value of the form @'Left' problems@, where @problems@ is an explanation
 -- of where the missing keys are.
 --
 -- @
