@@ -16,30 +16,30 @@ operations -- sometimes even operations on other maps!
 None of the functions in this module can cause a run-time error, and very few
 of the operations return a `Maybe` value.
 
-See the Data.Map.Justified.Tutorial module for usage examples.
+See the `Data.Map.Justified.Tutorial` module for usage examples.
 
 ```haskell
     withMap test_table $ \\table -> do
     
       case member 1 table of
     
-        Nothing  -> putStrLn `Sorry, I couldnt prove that the key is present.`
+        Nothing  -> putStrLn "Sorry, I couldnt prove that the key is present."
     
         Just key -> do
           -- In this do-block, \key\ represents the key 1, but carries type-level
           -- evidence that the key is present. Lookups and updates can now proceed
           -- without the possibility of error.
-          putStrLn (`Found key: ` ++ show key)
+          putStrLn ("Found key: " ++ show key)
     
           -- lookup returns a value directly, not a \Maybe\!
-          putStrLn (`Value for key: ` ++ lookup key table)
+          putStrLn ("Value for key: " ++ lookup key table)
     
           -- If you update an already-mapped value, the set of valid keys does
-          -- not change. So the evidence that \key\ could be found in \table\
-          -- is still sufficient to ensure that \key\ can be found in the updated
+          -- not change. So the evidence that 'key' could be found in 'table'
+          -- is still sufficient to ensure that 'key' can be found in the updated
           -- table as well.
-          let table = reinsert key `howdy` table
-          putStrLn (`Value for key in updated map: ` ++ lookup key table)
+          let table = reinsert key "howdy" table
+          putStrLn ("Value for key in updated map: " ++ lookup key table)
 ```
 
 Output:
@@ -63,8 +63,13 @@ In `Data.Map`, there are two strategies for dealing with absent keys:
 The first option introduces partial functions, so is not very palatable. But what is
 wrong with the second option?
 
-To understand the problem with returning a `Maybe` value, lets ask what returning
-`Maybe v` from `Data.Map.lookup :: k -> Map k v -> Maybe v` really does for us. By returning
+To understand the problem with returning a `Maybe` value, lets ask what the  `Maybe v` in
+
+```haskell
+    lookup :: k -> Map k v -> Maybe v
+```
+
+really does for us. By returning
 a `Maybe v` value, `lookup key table` is saying "Your program must account
 for the possibility that `key` cannot be found in `table`. I will ensure that you
 account for this possibility by forcing you to handle the `Nothing` case."
@@ -106,12 +111,16 @@ There are several ways to prove that a key belongs to a map, but the simplest is
 `Data.Map.Justified`s `Data.Map.Justified.member` function. In `Data.Map`, `Data.Map.member`
 has the type
 
+```haskell
     member :: Ord k => k -> Map k v -> Bool
+```
 
 and reports whether or not the key can be found in the map. In `Data.Map.Justified`,
 `Data.Map.Member` has the type
 
+```haskell
     member :: Ord k => k -> Map ph k v -> Maybe (Key ph k)
+```
 
 Instead of a boolean, `Data.Map.Justified.member` either says `the key is not present`
 (`Nothing`), or gives back the same key, *augmented with evidence that they key*
