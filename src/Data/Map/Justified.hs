@@ -408,7 +408,7 @@ lookupGE k (Map m) = fmap (\(key, v) -> (Key key, v)) (M.lookupGE k m)
 -- valid for the output map.
 
 adjust :: Ord k => (v -> v) -> Key ph k -> Map ph k v -> Map ph k v
-adjust f (Key k) (Map m) = Map (M.adjust f k m)
+adjust f (Key k) = mmap (M.adjust f k)
 
 -- | Adjust the valid at a key, known to be in the map,
 -- using the given function.
@@ -418,7 +418,7 @@ adjust f (Key k) (Map m) = Map (M.adjust f k m)
 -- valid for the output map.
 
 adjustWithKey :: Ord k => (Key ph k -> v -> v) -> Key ph k -> Map ph k v -> Map ph k v
-adjustWithKey f (Key k) (Map m) = Map (M.adjustWithKey f' k m)
+adjustWithKey f (Key k) = mmap (M.adjustWithKey f' k)
   where f' key = f (Key key)
 
 -- | Replace the value at a key, known to be in the map.
@@ -428,7 +428,7 @@ adjustWithKey f (Key k) (Map m) = Map (M.adjustWithKey f' k m)
 -- valid for the output map.
 
 reinsert :: Ord k => Key ph k -> v -> Map ph k v -> Map ph k v
-reinsert (Key k) v (Map m) = Map (M.insert k v m)
+reinsert (Key k) v = mmap (M.insert k v)
 
 -- | Insert a value for a key that is /not/ known to be in the map,
 -- evaluating the updated map with the given continuation.
@@ -453,7 +453,7 @@ inserting :: Ord k
           -> Map ph k v -- ^ initial map
           -> (forall ph'. (Key ph' k, Key ph k -> Key ph' k, Map ph' k v) -> t) -- ^ continuation
           -> t
-inserting k v (Map m) cont = cont (Key k, \(Key key) -> Key key, Map (M.insert k v m))
+inserting k v m cont = cont (Key k, qed, mmap (M.insert k v) m)
 
 -- | /O(log n)/. Insert with a function, combining new value and old value.
 -- @'insertingWith' f key value mp cont@
@@ -480,7 +480,7 @@ insertingWith :: Ord k
               -> Map ph k v -- ^ initial map
               -> (forall ph'. (Key ph' k, Key ph k -> Key ph' k, Map ph' k v) -> t) -- ^ continuation
               -> t
-insertingWith f k v (Map m) cont = cont (Key k, \(Key key) -> Key key, Map (M.insertWith f k v m))
+insertingWith f k v m cont = cont (Key k, qed, mmap (M.insertWith f k v) m)
 
 -- | /O(log n)/. Delete a key and its value from the map.
 --
@@ -497,7 +497,7 @@ deleting :: Ord k
          -> Map ph k v -- ^ initial map
          -> (forall ph'. (Key ph' k -> Key ph k, Map ph' k v) -> t) -- ^ continuation
          -> t
-deleting k (Map m) cont = cont (\(Key key) -> Key key, Map (M.delete k m))
+deleting k m cont = cont (qed, mmap (M.delete k) m)
 
 -- | /O(log n)/. Difference of two maps.
 -- Return elements of the first map not existing in the second map.
@@ -515,7 +515,7 @@ subtracting :: Ord k
             -> Map phR k b -- ^ the right-hand map
             -> (forall ph'. (Key ph' k -> Key phL k, Map ph' k a) -> t) -- ^ continuation
             -> t
-subtracting (Map mapL) (Map mapR) cont = cont (\(Key key) -> Key key, Map (M.difference mapL mapR))
+subtracting mapL mapR cont = cont (qed, mmap2 M.difference mapL mapR)
 
 {--------------------------------------------------------------------
   Unions
@@ -539,9 +539,7 @@ unioning :: Ord k
          -> Map phR k v -- ^ right-hand map
          -> (forall ph'. (Key phL k -> Key ph' k, Key phR k -> Key ph' k, Map ph' k v) -> t) -- ^ continuation
          -> t
-unioning (Map mapL) (Map mapR) cont = cont (\(Key key) -> Key key,
-                                            \(Key key) -> Key key,
-                                            Map (M.union mapL mapR))
+unioning mapL mapR cont = cont (qed, qed, mmap2 M.union mapL mapR)
 
 -- | @'unioningWith' f@ is the same as @'unioning'@, except that @f@ is used to
 -- combine values that correspond to keys found in both maps.
@@ -551,9 +549,7 @@ unioningWith :: Ord k
              -> Map phR k v -- ^ right-hand map
              -> (forall ph'. (Key phL k -> Key ph' k, Key phR k -> Key ph' k, Map ph' k v) -> t) -- ^ continuation
              -> t
-unioningWith f (Map mapL) (Map mapR) cont = cont (\(Key key) -> Key key,
-                                                  \(Key key) -> Key key,
-                                                  Map (M.unionWith f mapL mapR))
+unioningWith f mapL mapR cont = cont (qed, qed, mmap2 (M.unionWith f) mapL mapR)
 
 -- | @'unioningWithKey' f@ is the same as @'unioningWith' f@, except that @f@ also
 -- has access to the key and evidence that it is present in both maps.
@@ -563,9 +559,7 @@ unioningWithKey :: Ord k
                 -> Map phR k v -- ^ right-hand map
                 -> (forall ph'. (Key phL k -> Key ph' k, Key phR k -> Key ph' k, Map ph' k v) -> t) -- ^ continuation
                 -> t
-unioningWithKey f (Map mapL) (Map mapR) cont = cont (\(Key key) -> Key key,
-                                                     \(Key key) -> Key key,
-                                                     Map (M.unionWithKey f' mapL mapR))
+unioningWithKey f mapL mapR cont = cont (qed, qed, mmap2 (M.unionWithKey f') mapL mapR)
   where f' k = f (Key k) (Key k)
 
 {--------------------------------------------------------------------
@@ -587,7 +581,7 @@ filtering :: (v -> Bool) -- ^ predicate on values
           -> Map ph k v -- ^ original map
           -> (forall ph'. (Key ph' k -> Key ph k, Map ph' k v) -> t) -- ^ continuation
           -> t
-filtering f (Map m) cont = cont (\(Key key) -> Key key, Map (M.filter f m))
+filtering f m cont = cont (qed, mmap (M.filter f) m)
 
 -- | As 'filtering', except the filtering function also has access to
 -- the key and existence evidence.
@@ -595,7 +589,7 @@ filteringWithKey :: (Key ph k -> v -> Bool) -- ^ predicate on keys and values
                  -> Map ph k v -- ^ original map
                  -> (forall ph'. (Key ph' k -> Key ph k, Map ph' k v) -> t) -- ^ continuation
                  -> t
-filteringWithKey f (Map m) cont = cont (\(Key key) -> Key key, Map (M.filterWithKey (f . Key) m))
+filteringWithKey f m cont = cont (qed, mmap (M.filterWithKey (f . Key)) m)
   
 {--------------------------------------------------------------------
   Mapping and traversing
@@ -606,7 +600,7 @@ filteringWithKey f (Map m) cont = cont (\(Key key) -> Key key, Map (M.filterWith
 mapWithKey :: (Key ph k -> a -> b)
            -> Map ph k a
            -> Map ph k b
-mapWithKey f (Map m) = Map (M.mapWithKey f' m)
+mapWithKey f = mmap (M.mapWithKey f')
   where f' k = f (Key k)
 
 -- | /O(n)/. As in @'Data.Map.traverse'@: traverse the map, but give the
@@ -658,7 +652,7 @@ mappingKeys :: Ord k2
             -> Map ph k1 v -- ^ initial map
             -> (forall ph'. (Key ph k1 -> Key ph' k2, Map ph' k2 v) -> t) -- ^ continuation
             -> t
-mappingKeys f (Map m) cont = cont (\(Key k) -> Key (f k), Map (M.mapKeys f m))
+mappingKeys f m cont = cont (via f, mmap (M.mapKeys f) m)
 
 -- | /O(n*log n)/.
 -- Same as @'mappingKeys'@, but the key-mapping function can make use of
@@ -669,7 +663,7 @@ mappingKnownKeys :: Ord k2
             -> Map ph k1 v -- ^ initial map
             -> (forall ph'. (Key ph k1 -> Key ph' k2, Map ph' k2 v) -> t) -- ^ continuation
             -> t
-mappingKnownKeys f (Map m) cont = cont (Key . f, Map (M.mapKeys f' m))
+mappingKnownKeys f m cont = cont (Key . f, mmap (M.mapKeys f') m)
   where f' k = f (Key k)
         
 -- | /O(n*log n)/.
@@ -682,7 +676,7 @@ mappingKeysWith :: Ord k2
                 -> Map ph k1 v -- ^ initial map
                 -> (forall ph'. (Key ph k1 -> Key ph' k2, Map ph' k2 v) -> t) -- ^ continuation
                 -> t
-mappingKeysWith op f (Map m) cont = cont (\(Key k) -> Key (f k), Map (M.mapKeysWith op f m))
+mappingKeysWith op f m cont = cont (via f, mmap (M.mapKeysWith op f) m)
 
 -- | /O(n*log n)/.
 -- Same as @'mappingKnownKeys'@, except a function is used to combine values when
@@ -694,7 +688,7 @@ mappingKnownKeysWith :: Ord k2
                 -> Map ph k1 v -- ^ initial map
                 -> (forall ph'. (Key ph k1 -> Key ph' k2, Map ph' k2 v) -> t) -- ^ continuation
                 -> t
-mappingKnownKeysWith op f (Map m) cont = cont (Key . f, Map (M.mapKeysWith op f' m))
+mappingKnownKeysWith op f m cont = cont (Key . f, mmap (M.mapKeysWith op f') m)
   where f' k = f (Key k)
         
 {--------------------------------------------------------------------
@@ -716,8 +710,7 @@ intersecting :: Ord k
              -> Map phR k b -- ^ right-hand map
              -> (forall ph'. (Key ph' k -> (Key phL k, Key phR k), Map ph' k a) -> t) -- ^ continuation
              -> t
-intersecting (Map mapL) (Map mapR) cont = cont (\(Key key) -> (Key key, Key key),
-                                                Map (M.intersection mapL mapR))
+intersecting mapL mapR cont = cont (qed2, mmap2 M.intersection mapL mapR)
 
 -- | As @'intersecting'@, but uses the combining function to merge mapped values on the intersection.
 intersectingWith :: Ord k
@@ -726,8 +719,7 @@ intersectingWith :: Ord k
                  -> Map phR k b -- ^ right-hand map
                  -> (forall ph'. (Key ph' k -> (Key phL k, Key phR k), Map ph' k c) -> t) -- ^ continuation
                  -> t
-intersectingWith f (Map mapL) (Map mapR) cont = cont (\(Key key) -> (Key key, Key key),
-                                                      Map (M.intersectionWith f mapL mapR))
+intersectingWith f mapL mapR cont = cont (qed2, mmap2 (M.intersectionWith f) mapL mapR)
 
 -- | As @'intersectingWith'@, but the combining function has access to the map keys.
 intersectingWithKey :: Ord k
@@ -736,8 +728,7 @@ intersectingWithKey :: Ord k
                     -> Map phR k b -- ^ right-hand map
                     -> (forall ph'. (Key ph' k -> (Key phL k, Key phR k), Map ph' k c) -> t) -- ^ continuation
                     -> t
-intersectingWithKey f (Map mapL) (Map mapR) cont = cont (\(Key key) -> (Key key, Key key),
-                                                         Map (M.intersectionWithKey f' mapL mapR))
+intersectingWithKey f mapL mapR cont = cont (qed2, mmap2 (M.intersectionWithKey f') mapL mapR)
   where f' k = f (Key k) (Key k)
 
 {--------------------------------------------------------------------
@@ -808,3 +799,33 @@ tie phi m = go
     go = (`lookup` table)
     table = fmap (phi . fmap go) m
 
+{--------------------------------------------------------------------
+  INTERNAL ONLY
+
+  These functions are used to inform the type system about
+  invariants of Data.Map. They cannot be available outside of
+  this module.
+--------------------------------------------------------------------}
+
+-- | Coerce key-existence evidence
+qed :: Key ph k -> Key ph' k
+qed (Key k) = Key k
+
+-- | Coerce key-existence evidence
+qed2 :: Key ph k -> (Key phL k, Key phR k)
+qed2 (Key k) = (Key k, Key k)
+
+-- | Coerce key-existence evidence transported along a function
+via :: (k1 -> k2) -> Key ph k1 -> Key ph' k2
+via f (Key k) = Key (f k)
+
+-- | Coerce one map type to another, using a function on "Data.Map"'s @'Data.Map.Map'@.
+mmap :: (M.Map k1 v1 -> M.Map k2 v2) -> Map ph1 k1 v1 -> Map ph2 k2 v2
+mmap f (Map m) = Map (f m)
+
+-- | Coerce one map type to another, using a binary function on "Data.Map"'s @'Data.Map.Map'@.
+mmap2 :: (M.Map k1 v1 -> M.Map k2 v2 -> M.Map k3 v3)
+      -> Map ph1 k1 v1
+      -> Map ph2 k2 v2
+      -> Map ph3 k3 v3
+mmap2 f (Map m1) (Map m2) = Map (f m1 m2)
