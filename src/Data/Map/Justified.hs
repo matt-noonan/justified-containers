@@ -23,28 +23,23 @@
 --
 -- See the 'Data.Map.Justified.Tutorial' module for usage examples.
 --
+-- === Example
 -- @
 --  withMap test_table $ \\table -> do
 --  
 --    case member 1 table of
 --
---      Nothing  -> putStrLn "Sorry, I couldn't prove that the key is present."
+--      Nothing  -> putStrLn "Sorry, I couldn\'t prove that the key is present."
 --
 --      Just key -> do
---        -- In this do-block, \'key\' represents the key 1, but carries type-level
---        -- evidence that the key is present. Lookups and updates can now proceed
---        -- without the possibility of error.
+--
+--        -- We have proven that the key is present, and can now use it Maybe-free...
 --        putStrLn ("Found key: " ++ show key)
---  
---        -- lookup returns a value directly, not a \'Maybe\'!
 --        putStrLn ("Value for key: " ++ lookup key table)
 --  
---        -- If you update an already-mapped value, the set of valid keys does
---        -- not change. So the evidence that \'key\' could be found in \'table\'
---        -- is still sufficient to ensure that \'key\' can be found in the updated
---        -- table as well.
---        let table' = reinsert key "howdy" table
---        putStrLn ("Value for key in updated map: " ++ lookup key table')
+--        -- ...even in certain other maps!
+--        let table\' = reinsert key "howdy" table
+--        putStrLn ("Value for key in updated map: " ++ lookup key table\')
 -- @
 -- Output:
 --

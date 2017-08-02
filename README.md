@@ -16,28 +16,25 @@ operations -- sometimes even operations on other maps!
 None of the functions in this module can cause a run-time error, and very few
 of the operations return a `Maybe` value.
 
-See the `Data.Map.Justified.Tutorial` module for usage examples.
+See the `Data.Map.Justified.Tutorial` module for usage examples, or browse the API of the
+most recent release [on Hackage](https://hackage.haskell.org/package/justified-containers/docs/Data-Map-Justified.html).
+
+### Example
 
 ```haskell
     withMap test_table $ \table -> do
     
       case member 1 table of
     
-        Nothing  -> putStrLn "Sorry, I couldnt prove that the key is present."
+        Nothing  -> putStrLn "Sorry, I couldn't prove that the key is present."
     
         Just key -> do
-          -- In this do-block, 'key' represents the key 1, but carries type-level
-          -- evidence that the key is present. Lookups and updates can now proceed
-          -- without the possibility of error.
-          putStrLn ("Found key: " ++ show key)
-    
-          -- lookup returns a value directly, not a 'Maybe'!
+        
+          -- We have proven that the key is present, and can now use it Maybe-free...
+          putStrLn ("Found key: "     ++ show key)
           putStrLn ("Value for key: " ++ lookup key table)
-    
-          -- If you update an already-mapped value, the set of valid keys does
-          -- not change. So the evidence that 'key' could be found in 'table'
-          -- is still sufficient to ensure that 'key' can be found in the updated
-          -- table as well.
+
+          -- ...even in certain other maps!
           let table' = reinsert key "howdy" table
           putStrLn ("Value for key in updated map: " ++ lookup key table')
 ```
