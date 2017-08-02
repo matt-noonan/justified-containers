@@ -151,36 +151,51 @@ module Data.Map.Justified (
     , lookupGT
     , lookupGE
       
-    -- * Lookup and update
+    -- * Safe lookup
     , lookup
     , (!)
+
+    -- * Preserving key sets
+    -- ** Localized updates
     , adjust
     , adjustWithKey
     , reinsert
-    -- ** Inserting new keys
-    , inserting
-    , insertingWith
-      
-    -- * Mapping
+    -- ** Mapping values
     , mapWithKey
     , traverseWithKey
     , mapAccum
     , mapAccumWithKey
-    -- ** Mapping keys
-    , mappingKeys
-    , mappingKnownKeys
-    , mappingKeysWith
-    , mappingKnownKeysWith
+    -- ** Zipping
+    , zip
+    , zipWith
+    , zipWithKey
       
-    -- * Unions
+    -- * Enlarging key sets  
+    -- ** Inserting new keys
+    , inserting
+    , insertingWith
+    -- ** Unions
     , unioning
     , unioningWith
     , unioningWithKey
 
-    -- * Zipping
-    , zip
-    , zipWith
-    , zipWithKey
+    -- * Reducing key sets
+    -- ** Removing keys
+    , deleting
+    , subtracting
+    -- ** Filtering
+    , filtering
+    , filteringWithKey
+    -- ** Intersections
+    , intersecting
+    , intersectingWith
+    , intersectingWithKey
+
+    -- * Mapping key sets
+    , mappingKeys
+    , mappingKnownKeys
+    , mappingKeysWith
+    , mappingKnownKeysWith
       
     -- * Indexing
     , findIndex
@@ -466,7 +481,42 @@ insertingWith :: Ord k
               -> (forall ph'. (Key ph' k, Key ph k -> Key ph' k, Map ph' k v) -> t) -- ^ continuation
               -> t
 insertingWith f k v (Map m) cont = cont (Key k, \(Key key) -> Key key, Map (M.insertWith f k v m))
-                                         
+
+-- | /O(log n)/. Delete a key and its value from the map.
+--
+-- The continuation is given two things:
+--
+--   1. A function that can be used to convert evidence that a key
+--      exists in the /updated/ map, to evidence that the key exists
+--      in the /original/ map. (contrast with 'inserting')
+--
+--   2. The updated map itself.
+--        
+deleting :: Ord k
+         => k  -- ^ key to remove
+         -> Map ph k v -- ^ initial map
+         -> (forall ph'. (Key ph' k -> Key ph k, Map ph' k v) -> t) -- ^ continuation
+         -> t
+deleting k (Map m) cont = cont (\(Key key) -> Key key, Map (M.delete k m))
+
+-- | /O(log n)/. Difference of two maps.
+-- Return elements of the first map not existing in the second map.
+--
+-- The continuation is given two things:
+--
+--   1. A function that can be used to convert evidence that a key
+--      exists in the difference, to evidence that the key exists
+--      in the original left-hand map.
+--
+--   2. The updated map itself.
+--        
+subtracting :: Ord k
+            => Map phL k a -- ^ the left-hand map
+            -> Map phR k b -- ^ the right-hand map
+            -> (forall ph'. (Key ph' k -> Key phL k, Map ph' k a) -> t) -- ^ continuation
+            -> t
+subtracting (Map mapL) (Map mapR) cont = cont (\(Key key) -> Key key, Map (M.difference mapL mapR))
+
 {--------------------------------------------------------------------
   Unions
 --------------------------------------------------------------------}
@@ -518,6 +568,35 @@ unioningWithKey f (Map mapL) (Map mapR) cont = cont (\(Key key) -> Key key,
                                                      Map (M.unionWithKey f' mapL mapR))
   where f' k = f (Key k) (Key k)
 
+{--------------------------------------------------------------------
+  Filtering
+--------------------------------------------------------------------}
+
+-- | Keep only the keys and associated values in a map that satisfy
+-- the predicate.
+--
+-- The continuation is given two things:
+--
+--    1. A function that converts evidence that a key is present in
+--       the filtered map into evidence that the key is present in
+--       the original map, and
+--
+--    2. The filtered map itself, with a new phantom type parameter.
+--
+filtering :: (v -> Bool) -- ^ predicate on values
+          -> Map ph k v -- ^ original map
+          -> (forall ph'. (Key ph' k -> Key ph k, Map ph' k v) -> t) -- ^ continuation
+          -> t
+filtering f (Map m) cont = cont (\(Key key) -> Key key, Map (M.filter f m))
+
+-- | As 'filtering', except the filtering function also has access to
+-- the key and existence evidence.
+filteringWithKey :: (Key ph k -> v -> Bool) -- ^ predicate on keys and values
+                 -> Map ph k v -- ^ original map
+                 -> (forall ph'. (Key ph' k -> Key ph k, Map ph' k v) -> t) -- ^ continuation
+                 -> t
+filteringWithKey f (Map m) cont = cont (\(Key key) -> Key key, Map (M.filterWithKey (f . Key) m))
+  
 {--------------------------------------------------------------------
   Mapping and traversing
 --------------------------------------------------------------------}
@@ -619,6 +698,49 @@ mappingKnownKeysWith op f (Map m) cont = cont (Key . f, Map (M.mapKeysWith op f'
   where f' k = f (Key k)
         
 {--------------------------------------------------------------------
+  Intersections
+--------------------------------------------------------------------}
+
+-- | Take the left-biased intersections of two @'Data.Map.Justified.Map'@s, as in "Data.Map"'s
+-- @'Data.Map.intersection'@, evaluating the intersection map with the given continuation.
+--
+-- The continuation is given two things:
+--
+--   1. A function that can be used to convert evidence that a key exists in the intersection
+--      to evidence that the key exists in each original map, and
+--
+--   2. The updated @'Data.Map.Justified.Map'@, with a /different phantom type/.
+--
+intersecting :: Ord k
+             => Map phL k a -- ^ left-hand map
+             -> Map phR k b -- ^ right-hand map
+             -> (forall ph'. (Key ph' k -> (Key phL k, Key phR k), Map ph' k a) -> t) -- ^ continuation
+             -> t
+intersecting (Map mapL) (Map mapR) cont = cont (\(Key key) -> (Key key, Key key),
+                                                Map (M.intersection mapL mapR))
+
+-- | As @'intersecting'@, but uses the combining function to merge mapped values on the intersection.
+intersectingWith :: Ord k
+                 => (a -> b -> c) -- ^ combining function
+                 -> Map phL k a -- ^ left-hand map
+                 -> Map phR k b -- ^ right-hand map
+                 -> (forall ph'. (Key ph' k -> (Key phL k, Key phR k), Map ph' k c) -> t) -- ^ continuation
+                 -> t
+intersectingWith f (Map mapL) (Map mapR) cont = cont (\(Key key) -> (Key key, Key key),
+                                                      Map (M.intersectionWith f mapL mapR))
+
+-- | As @'intersectingWith'@, but the combining function has access to the map keys.
+intersectingWithKey :: Ord k
+                    => (Key phL k -> Key phR k -> a -> b -> c) -- ^ combining function
+                    -> Map phL k a -- ^ left-hand map
+                    -> Map phR k b -- ^ right-hand map
+                    -> (forall ph'. (Key ph' k -> (Key phL k, Key phR k), Map ph' k c) -> t) -- ^ continuation
+                    -> t
+intersectingWithKey f (Map mapL) (Map mapR) cont = cont (\(Key key) -> (Key key, Key key),
+                                                         Map (M.intersectionWithKey f' mapL mapR))
+  where f' k = f (Key k) (Key k)
+
+{--------------------------------------------------------------------
   Zipping
 --------------------------------------------------------------------}
 
@@ -685,3 +807,4 @@ tie phi m = go
   where
     go = (`lookup` table)
     table = fmap (phi . fmap go) m
+
