@@ -13,7 +13,7 @@
 -- @'lookup'@ should give @'Just' v@? (and did shifting requirements ever make the impossible
 -- become possible after all?)
 --
--- "Data.Map.Justified" provides a wrapper around "Data.Map"'s @'Data.Map.Map'@ that enables you
+-- "Data.Map.Justified" provides a zero-cost @newtype@ wrapper around "Data.Map"'s @'Data.Map.Map'@ that enables you
 -- to separate the /proof that a key is present/ from the /operations using the key/. Once
 -- you prove that a key is present, you can use it @Maybe@-free in any number of other
 -- operations -- sometimes even operations on other maps!
