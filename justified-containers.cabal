@@ -15,6 +15,12 @@ build-type:          Simple
 extra-source-files:  README.md
 cabal-version:       >=1.10
 
+
+source-repository head
+  type:     git
+  location: https://github.com/matt-noonan/justified-containers
+
+
 library
   hs-source-dirs:      src
   exposed-modules:     Data.Map.Justified
@@ -24,6 +30,17 @@ library
                      , containers                     
   default-language:    Haskell2010
 
-source-repository head
-  type:     git
-  location: https://github.com/matt-noonan/justified-containers
+
+test-suite justified-containers-spec
+  type:              exitcode-stdio-1.0
+  main-is:           Spec.hs
+  hs-source-dirs:    test
+  ghc-options:       -Wall -Wno-deferred-type-errors
+  build-depends:     base >= 4.7 && < 5
+                   , hspec
+                   , justified-containers
+                   , containers
+                   , QuickCheck
+                   , should-not-typecheck
+  other-modules:     Data.Map.JustifiedSpec
+  default-language:  Haskell2010
