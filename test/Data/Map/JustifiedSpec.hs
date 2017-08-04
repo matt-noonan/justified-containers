@@ -26,6 +26,15 @@ instance Arbitrary AlphaNum where
 spec :: Spec
 spec = do
 
+  describe "using Data.Map.Justified.Map" $ do
+
+    it "wraps the underlying Data.Map.Map without modification" $ do
+      withMap letters theMap == letters
+
+    it "can create singleton maps" $ property $ do
+      \(k :: Int, v :: Int) -> withSingleton k v (uncurry lookup) == v
+      \(k :: Int, v :: Int) -> withSingleton k v (theMap . snd)   == M.fromList [(k,v)]
+      
   describe "validated keys" $ do
     
     it "can be obtained iff a key is present" $ property $
@@ -42,8 +51,11 @@ spec = do
     it "can still be used in an adjusted map" $ do
       withMap letters (\m -> let (k:k':_) = keys m in
                                  (lookup k (reinsert k 17 m),
-                                  lookup k (reinsert k' 17 m)))
-      `shouldBe` (17,1)
+                                  lookup k (reinsert k' 17 m),
+                                  lookup k (adjust (+1) k m),
+                                  lookup k (adjustWithKey
+                                              (\k v -> v + fromEnum (theKey k)) k m)))
+      `shouldBe` (17,1,2,98)
       
     it "can not escape `withMap`" $ shouldNotTypecheck $
       withMap letters (head keys)
@@ -51,3 +63,25 @@ spec = do
     it "can not be used in unrelated maps" $ shouldNotTypecheck $
       withMap letters (\m ->
          let k = head (keys m) in withMap letters (lookup k))
+
+    it  "can not be directly created" $ shouldNotTypecheck $
+      let k = Key 'a' in withMap letters (lookup k)
+
+  describe "when adding keys" $ do
+
+    it "can translate old keys to new map" $ property $
+      \(AlphaNum c, AlphaNum c') -> withMap letters $
+                                    \m -> inserting c' 100 m $
+                                          \(_, upgrade, m') ->
+                                            let k  = member c m
+                                                k' = member c m'
+                                            in fmap upgrade k == k' || c == c'
+  describe "when removing keys" $ do
+
+    it "can translate new keys to old map" $ property $
+      \(AlphaNum c, AlphaNum c') -> withMap letters $
+                                    \m -> deleting c' m $
+                                          \(downgrade, m') ->
+                                            let k  = member c m
+                                                k' = member c m'
+                                            in k == fmap downgrade k' || c == c'
