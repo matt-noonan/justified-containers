@@ -71,17 +71,29 @@ spec = do
 
     it "can translate old keys to new map" $ property $
       \(AlphaNum c, AlphaNum c') -> withMap letters $
-                                    \m -> inserting c' 100 m $
-                                          \(_, upgrade, m') ->
-                                            let k  = member c m
-                                                k' = member c m'
-                                            in fmap upgrade k == k' || c == c'
+        \m -> inserting c' 100 m $
+              \(_, upgrade, m') ->
+              let k  = member c m
+                  k' = member c m'
+              in c /= c' ==> fmap upgrade k == k'
+  
+    it "does not let a new key be used in the old map without translation" $
+      shouldNotTypecheck $
+        withMap letters $ \m -> inserting 'X' 100 m $
+          \(_, _, m') -> map (`lookup` m) (keys m')
+    
   describe "when removing keys" $ do
 
     it "can translate new keys to old map" $ property $
       \(AlphaNum c, AlphaNum c') -> withMap letters $
-                                    \m -> deleting c' m $
-                                          \(downgrade, m') ->
-                                            let k  = member c m
-                                                k' = member c m'
-                                            in k == fmap downgrade k' || c == c'
+         \m -> deleting c' m $
+               \(downgrade, m') ->
+               let k  = member c m
+                   k' = member c m'
+               in c /= c' ==> k == fmap downgrade k'
+
+    it "does not let an old key be used in the new map without translation" $
+      shouldNotTypecheck $
+        withMap letters $ \m -> deleting 'X' m $
+          \(_, _, m') -> map (`lookup` m') (keys m)
+    
