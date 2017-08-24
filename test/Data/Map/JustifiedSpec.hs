@@ -1,4 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE MagicHash #-}
 {-# OPTIONS_GHC -fdefer-type-errors #-}
 
 module Data.Map.JustifiedSpec (main, spec) where
@@ -12,6 +13,13 @@ import Test.ShouldNotTypecheck
 import Data.Map.Justified
 import qualified Data.Map as M
 import Data.Maybe
+
+import GHC.Prim
+import GHC.Int
+import System.Mem (performGC)
+import System.IO.Unsafe (unsafePerformIO)
+
+import Data.Coerce
 
 main :: IO ()
 main = hspec spec
@@ -97,3 +105,40 @@ spec = do
         withMap letters $ \m -> deleting 'X' m $
           \(_, _, m') -> map (`lookup` m') (keys m)
     
+  describe "the runtime representation" $ do
+
+    it "does not allocate map copies when gathering evidence" $ do
+      withMap letters $ \m -> map id [m] `isLiterally` [letters]
+
+    it "does not allocate map copies when forgetting evidence" $ do
+      withMap letters (\m -> map theMap [m]) `isLiterally` [letters]
+        
+    it "does not allocate key copies when gathering key evidence" $ do
+      withMap letters $ \m ->
+        let allKeys = M.keys letters
+        in map (fromJust . (`member` m)) allKeys `isLiterally` allKeys
+
+    it "does not allocate key copies when forgetting evidence" $ do
+      withMap letters $ \m ->
+        let allKeys = keys m
+        in map theKey allKeys `isLiterally` allKeys
+
+    it "does not allocate keys during evidence conversion for insertion" $ do
+      withMap letters $ \m ->
+        let allKeys = keys m
+        in inserting 'X' 100 m $ \(_, upgrade, _) -> map upgrade allKeys `isLiterally` allKeys
+
+    it "does not allocate keys during evidence conversion for deletion" $ do
+      withMap letters $ \m ->
+        deleting 'X' m $ \(downgrade, m') ->
+          let allKeys = keys m'
+          in map downgrade allKeys `isLiterally` allKeys
+                                                     
+        
+-- | Test if two values occupy the same location in memory.
+--   This is almost certainly flaky, especially if a GC occurs
+--   during evaluation of ans!
+isLiterally :: a -> b -> Bool
+isLiterally x y = unsafePerformIO (x `seq` y `seq` (performGC >> return ans))
+  where
+    ans = I64# (reallyUnsafePtrEquality# x (unsafeCoerce# y)) == 1
