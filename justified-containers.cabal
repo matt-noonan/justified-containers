@@ -42,5 +42,6 @@ test-suite justified-containers-spec
                    , containers
                    , QuickCheck
                    , should-not-typecheck
+                   , ghc-prim
   other-modules:     Data.Map.JustifiedSpec
   default-language:  Haskell2010
