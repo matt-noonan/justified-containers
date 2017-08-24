@@ -1,6 +1,15 @@
 # justified-containers
 Keyed container types with type-checked proofs of key presence.
 
+# Table of contents
+
+  * [Description](#description)
+    * [A simple example](#example)
+  * [Motivation](#motivation)
+  * [How it works](#how-it-works)
+    * [Phantom evidence](#phantom-evidence)
+
+
 # Description
 
 Have you ever *known* that a key could be found in a certain map? Were you tempted to
@@ -127,3 +136,104 @@ operations on the map.
 `Data.Map.Justified` uses the same rank-2 polymorphism trick used in the `Control.Monad.ST` monad to
 ensure that the `ph` phantom type can not be extracted; in effect, the proof that a key is
 present can't leak to contexts where the proof would no longer be valid.
+
+## Phantom evidence
+
+You can interpret the `ph` phantom type as a concrete *set of keys*; under this interpretation,
+a value of type `Key ph k` is a key of type `k`, belonging to the subset described by `ph`.
+Similarly, a `Map ph k v` is a map whose keys are exactly the subset of `k` described by `ph`.
+From this perspective, the maps behave as if they were total, leading to their `Maybe`-free behavior.
+
+## Why all the continuations?
+
+Many of the functions in `justified-containers` make use of continuations, but why? As a case-study,
+consider the basic function `withMap` that promotes a standard `Data.Map.Map` to a `Data.Map.Justified.Map':
+
+```haskell
+import Data.Map.Justified
+import qualified Data.Map as M
+withMap :: M.Map k v -> (forall ph. Map ph k v -> t) -> t
+```
+
+The last `(forall ph. Map ph k v -> t) -> t` part is the continuation.
+
+The idea is that we know there is *some* set of keys `ph` belonging to this particular map, but
+at compile-time we may not know exactly what it is. But it does exist, after all, so we should be
+able to write
+
+```haskell
+withMap :: M.Map k v -> exists ph. Map ph k v
+```
+
+Similarly, the `inserting` function could look like
+
+```haskell
+inserting :: k -> v -> Map ph k v -> exists ph'. Map ph' k v
+```
+
+which can be read as "after inserting a key/value pair, we get a (possibly) different set of keys `ph'`".
+But in this case, we actually know a bit more: first, the inserted key will be found in the new map. And
+second, every key in `ph` can also be found in `ph'`. We
+can encode that knowledge by giving an explicit inclusion of `ph` into `ph'`, encoded as a function of
+type `Key ph k -> Key ph' k`. So we could re-write `inserting` with the type
+
+```haskell
+inserting :: k -> v -> Map ph k v -> exists ph'. (Key ph' k, Key ph k -> Key ph' k, Map ph' k v)
+--                                                \_______/  \___________________/  \_________/
+--                                   the new key______|                |                 |
+--                                                      the inclusion__|                 |
+--                                                                       the new map_____|
+```
+
+Likewise, when deleting a key from a map with keys `ph`, we get a new map with keys `ph'` along
+with a guarantee that `ph'` is a subset of `ph`. Compared to `inserting`, the inclusion goes the
+other way: there is an inclusion of `ph'` in `ph`, encoded as a function of type `Key ph' k -> Key ph l`.
+Altogether, we could give `deleting` the type
+
+```haskell
+deleting :: k -> Map ph k v -> exists ph'. (Key ph' k -> Key ph k, Map ph' k v)
+--                                          \___________________/  \_________/
+--                                                    |                 |
+--                            the reversed inclusion__|                 |
+--                                                      the new map_____|
+```
+
+A similar pattern works for other map operations like `union`, `intersection`, `difference`, and
+`filter`.
+
+## But what about the continuations?
+
+In the last section, we argued that `deleting` should have a type like
+
+```haskell
+deleting :: k -> Map ph k v -> exists ph'. (Key ph' k -> Key ph k, Map ph' k v)
+--                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+```
+
+But if you check the documentation, you'll see the type
+
+```haskell
+deleting :: k -> Map ph k v -> (forall ph'. (Key ph' k -> Key ph k, Map ph' k v) -> t) -> t
+--                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+```
+
+What happened to the underlined part of the type?
+
+The problem is that Haskell doesn't support existential types directly: the `exists` part of
+the type we wrote out is just wishful thinking. Instead, we have to go about things a little
+indirectly: we'll *encode* existentially-quantified types, via *rank-2 universally-quantified types*.
+
+
+The idea can be understood via the Curry-Howard correspondence:
+In classical logic, we have an equivalence between the propositions `∃X.P(X)`
+and `∀T. ((∀X.F(X) => T) => T)`.  It turns out that this equivalence remains valid
+in constructive logic, so we can transport it via the Curry-Howard correspondence to get
+an isomorphism between types:
+
+```haskell
+exists ph.  Map ph k v ~ (forall ph. Map ph k v -> t) -> t
+```
+
+In other words, instead of returning the existentially-quantified type directly
+we say "tell me what you wanted to do with that existentially-quantified type,
+and I'll do it for you". 
