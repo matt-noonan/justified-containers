@@ -21,7 +21,7 @@
 -- None of the functions in this module can cause a run-time error, and very few
 -- of the operations return a @'Maybe'@ value.
 --
--- See the 'Data.Map.Justified.Tutorial' module for usage examples.
+-- See the "Data.Map.Justified.Tutorial" module for usage examples.
 --
 -- === Example
 -- @
