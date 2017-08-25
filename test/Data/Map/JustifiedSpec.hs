@@ -19,7 +19,7 @@ import GHC.Int
 import System.Mem (performGC)
 import System.IO.Unsafe (unsafePerformIO)
 
-import Data.Coerce
+import Data.Map.Justified.Tutorial (adjacencies)
 
 main :: IO ()
 main = hspec spec
@@ -105,40 +105,53 @@ spec = do
         withMap letters $ \m -> deleting 'X' m $
           \(_, _, m') -> map (`lookup` m') (keys m)
     
-  describe "the runtime representation" $ do
+  describe "at runtime" $ do
 
     it "does not allocate map copies when gathering evidence" $ do
-      withMap letters $ \m -> map id [m] `isLiterally` [letters]
+      withMap letters $ \m -> m `isLiterally` letters
 
     it "does not allocate map copies when forgetting evidence" $ do
-      withMap letters (\m -> map theMap [m]) `isLiterally` [letters]
+      withMap letters $ \m -> theMap m `isLiterally` letters
         
     it "does not allocate key copies when gathering key evidence" $ do
       withMap letters $ \m ->
-        let allKeys = M.keys letters
-        in map (fromJust . (`member` m)) allKeys `isLiterally` allKeys
+        each (M.keys letters) $ \k -> fromJust (k `member` m) `isLiterally` k
 
     it "does not allocate key copies when forgetting evidence" $ do
       withMap letters $ \m ->
-        let allKeys = keys m
-        in map theKey allKeys `isLiterally` allKeys
+        let ks = keys m
+              -- This depends on the Prelude rewrite rule "map coerce/coerce" firing, I think.
+        in map theKey ks `isLiterally` ks
 
     it "does not allocate keys during evidence conversion for insertion" $ do
       withMap letters $ \m ->
-        let allKeys = keys m
-        in inserting 'X' 100 m $ \(_, upgrade, _) -> map upgrade allKeys `isLiterally` allKeys
+        inserting 'X' 100 m $ \(_, upgrade, _) ->
+          each (keys m) $ \k -> upgrade k `isLiterally` k
 
     it "does not allocate keys during evidence conversion for deletion" $ do
       withMap letters $ \m ->
         deleting 'X' m $ \(downgrade, m') ->
-          let allKeys = keys m'
-          in map downgrade allKeys `isLiterally` allKeys
+          each (keys m') $ \k -> downgrade k `isLiterally` k
                                                      
-        
+    it "does not allocate values when performing lookup with a verified key" $ do
+      withMap letters $ \m ->
+        each (keys m) $ \k ->
+          (k `lookup` m) `isLiterally` fromJust (theKey k `M.lookup` letters)
+
+    it "does not allocate when verifying a recursive map" $ fromRight $ do
+      withRecMap adjacencies $ \m -> theMap m `isLiterally` adjacencies
+      
 -- | Test if two values occupy the same location in memory.
 --   This is almost certainly flaky, especially if a GC occurs
 --   during evaluation of ans!
 isLiterally :: a -> b -> Bool
-isLiterally x y = unsafePerformIO (x `seq` y `seq` (performGC >> return ans))
-  where
-    ans = I64# (reallyUnsafePtrEquality# x (unsafeCoerce# y)) == 1
+isLiterally x y = unsafePerformIO $ do
+  let x' = unsafeCoerce# y
+  x `seq` x' `seq` performGC
+  return $ I64# (reallyUnsafePtrEquality# x x') == 1
+
+each :: Traversable t => t a -> (a -> Bool) -> Bool
+each = flip all
+
+fromRight :: Either a b -> b
+fromRight = either (error "expected Right, got Left") id
