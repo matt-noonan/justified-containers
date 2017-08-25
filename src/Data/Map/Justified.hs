@@ -206,6 +206,8 @@ import qualified Data.Map as M
 import Data.List (partition)
 import Control.Arrow ((&&&))
 
+import Data.Coerce
+
 {--------------------------------------------------------------------
   Map and Key types
 --------------------------------------------------------------------}
@@ -307,11 +309,11 @@ withRecMap :: (Ord k, Traversable f)
            -> (forall ph. Map ph k (f (Key ph k)) -> t) -- ^ The checked continuation
            -> Either [MissingReference k f] t -- ^ Resulting value, or failure report.
 withRecMap m cont =
-  case bad of
-    [] -> Right $ cont (Map $ M.map (fmap Key) $ M.fromList ok)
-    _  -> Left (map (\(k,v) -> (k, fmap (id &&& locate) v)) bad)
+  case snd (partition (allKeysPresent . snd) $ M.toList m) of
+    []   -> Right $ cont (Map $ M.map (fmap coerce) m)
+    bads -> Left (map (\(k,v) -> (k, fmap (id &&& locate) v)) bads)
   where
-    (ok, bad) = partition (all ((== Present) . locate) . snd) (M.toList m)
+    allKeysPresent = all ((== Present) . locate)
     locate k = if M.member k m then Present else Missing
 
 {--------------------------------------------------------------------
