@@ -125,13 +125,13 @@ spec = do
 
     it "does not allocate keys during evidence conversion for insertion" $ do
       withMap letters $ \m ->
-        inserting 'X' 100 m $ \(_, upgrade, _) ->
-          each (keys m) $ \k -> upgrade k `isLiterally` k
+        inserting 'X' 100 m $ \(_, upgraded, _) ->
+          each (keys m) $ \k -> upgraded k `isLiterally` k
 
     it "does not allocate keys during evidence conversion for deletion" $ do
       withMap letters $ \m ->
-        deleting 'X' m $ \(downgrade, m') ->
-          each (keys m') $ \k -> downgrade k `isLiterally` k
+        deleting 'X' m $ \(downgraded, m') ->
+          each (keys m') $ \k -> downgraded k `isLiterally` k
                                                      
     it "does not allocate values when performing lookup with a verified key" $ do
       withMap letters $ \m ->
