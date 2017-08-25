@@ -139,7 +139,7 @@ spec = do
           (k `lookup` m) `isLiterally` fromJust (theKey k `M.lookup` letters)
 
     it "does not allocate when verifying a recursive map" $ fromRight $ do
-      withRecMap adjacencies $ \m -> theMap m `isLiterally` adjacencies
+      withRecMap adjacencies $ \m -> m `isLiterally` adjacencies
       
 -- | Test if two values occupy the same location in memory.
 --   This is almost certainly flaky, especially if a GC occurs
