@@ -1,4 +1,4 @@
-{-# LANGUAGE RankNTypes, DeriveTraversable #-}
+{-# LANGUAGE RankNTypes, DeriveTraversable, ScopedTypeVariables #-}
 -- |
 -- Module      :  Data.Map.Justified
 -- Copyright   :  (c) Matt Noonan 2017
@@ -207,6 +207,9 @@ import Data.List (partition)
 import Control.Arrow ((&&&))
 
 import Data.Coerce
+import Data.Roles
+import Data.Functor.Compose
+import Data.Type.Coercion
 
 {--------------------------------------------------------------------
   Map and Key types
@@ -304,18 +307,34 @@ type MissingReference k f = (k, f (k, KeyInfo))
 -- > withRecMap memory2 (const ()) -- Left [(1, Cons (2,Present) (3,Missing))]
 --
 -- See @'Data.Map.Justified.Tutorial.example5'@ for more usage examples.
-withRecMap :: (Ord k, Traversable f)
+
+withRecMap :: forall k f t . (Ord k, Traversable f, Representational f)
            => M.Map k (f k) -- ^ A map with key references
            -> (forall ph. Map ph k (f (Key ph k)) -> t) -- ^ The checked continuation
            -> Either [MissingReference k f] t -- ^ Resulting value, or failure report.
-withRecMap m cont =
-  case snd (partition (allKeysPresent . snd) $ M.toList m) of
-    []   -> Right $ cont (Map $ M.map (fmap coerce) m)
-    bads -> Left (map (\(k,v) -> (k, fmap (id &&& locate) v)) bads)
-  where
-    allKeysPresent = all ((== Present) . locate)
-    locate k = if M.member k m then Present else Missing
 
+withRecMap m cont =
+  
+  case snd (partition (allKeysPresent . snd) $ M.toList m) of
+    
+    -- All referenced keys are found in the map; coerce the map's type.
+    []   -> Right $ cont (Map $ (coerceWith mapCoercion) m)
+
+    -- There were some dangling key references; report them.
+    bads -> Left (map (\(k,v) -> (k, fmap (id &&& locate) v)) bads)
+
+  where
+
+    allKeysPresent = all ((== Present) . locate)
+
+    locate k = if M.member k m then Present else Missing
+    
+    nestedValueCoercion :: Coercion (f k) (f (Key ph0 k))
+    nestedValueCoercion = rep Coercion
+    
+    mapCoercion :: Coercion (M.Map k (f k)) (M.Map k (f (Key ph0 k)))
+    mapCoercion = rep nestedValueCoercion
+    
 {--------------------------------------------------------------------
   Gathering evidence
 --------------------------------------------------------------------}

@@ -6,7 +6,11 @@ resolver: lts-8.19
 # Local packages, usually specified by relative directory name
 packages:
 - '.'
-
+- location:
+    git: https://github.com/ekmett/roles
+    commit: 1eae3032de1c2010e3053a0a559264f5c51839bb
+  extra-dep: true
+  
 # Packages to be pulled from upstream that are not in the resolver (e.g., acme-missiles-0.3)
 extra-deps: []
 
