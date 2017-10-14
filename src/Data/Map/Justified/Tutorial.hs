@@ -220,9 +220,9 @@ example3 = withMap test_table $ \table -> do
 -- "new key" data.
 --
 -- @
---  example4 = withMap test_table $ \table -> do
---    inserting 3 "NEW" table $ \(newKey, upgrade, table') -> do
---      forM_ (keys table) $ \key -> do
+--  example4 = withMap test_table $ \\table -> do
+--    inserting 3 "NEW" table $ \\(newKey, upgrade, table') -> do
+--      forM_ (keys table) $ \\key -> do
 --        putStrLn (show key ++ " maps to " ++ table  ! key ++ " in the old table.")
 --        putStrLn (show key ++ " maps to " ++ table' ! (upgrade key) ++ " in the new table.")
 --      putStrLn ("Also, the new table maps " ++ show newKey ++ " to " ++ table' ! newKey)
