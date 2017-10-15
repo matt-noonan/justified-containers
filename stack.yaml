@@ -7,8 +7,8 @@ resolver: lts-8.19
 packages:
 - '.'
 - location:
-    git: https://github.com/ekmett/roles
-    commit: 1eae3032de1c2010e3053a0a559264f5c51839bb
+    git: https://github.com/matt-noonan/roles
+    commit: 11aa43e0680b320a289bcc329c3ba33572961fa4
   extra-dep: true
   
 # Packages to be pulled from upstream that are not in the resolver (e.g., acme-missiles-0.3)

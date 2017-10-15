@@ -1,4 +1,4 @@
-{-# LANGUAGE RankNTypes, DeriveTraversable, ScopedTypeVariables #-}
+{-# LANGUAGE RankNTypes, DeriveTraversable, ScopedTypeVariables, RoleAnnotations #-}
 -- |
 -- Module      :  Data.Map.Justified
 -- Copyright   :  (c) Matt Noonan 2017
@@ -206,9 +206,7 @@ import qualified Data.Map as M
 import Data.List (partition)
 import Control.Arrow ((&&&))
 
-import Data.Coerce
 import Data.Roles
-import Data.Functor.Compose
 import Data.Type.Coercion
 
 {--------------------------------------------------------------------
@@ -224,6 +222,7 @@ import Data.Type.Coercion
 -- @'Map'@ allows you to shift the burden of proof that a key exists
 -- in a map from "prove at every lookup" to "prove once per key".
 newtype Map ph k v = Map (M.Map k v) deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+type role Map phantom nominal representational
 
 -- | A key that knows it can be found in certain @'Map'@s.
 -- 
@@ -232,6 +231,7 @@ newtype Map ph k v = Map (M.Map k v) deriving (Eq, Ord, Show, Functor, Foldable,
 -- operations such as lookup will only type-check if the @'Key'@
 -- and the @'Map'@ have the same phantom type parameter.
 newtype Key ph k = Key k deriving (Eq, Ord, Show)
+type role Key phantom representational
 
 -- | Get a bare key out of a key-plus-evidence by forgetting
 -- what map the key can be found in.
@@ -334,7 +334,8 @@ withRecMap m cont =
     
     mapCoercion :: Coercion (M.Map k (f k)) (M.Map k (f (Key ph0 k)))
     mapCoercion = rep nestedValueCoercion
-    
+
+
 {--------------------------------------------------------------------
   Gathering evidence
 --------------------------------------------------------------------}

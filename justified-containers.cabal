@@ -28,7 +28,7 @@ library
   ghc-options:         -O2 -Wall
   build-depends:       base >= 4.7 && < 5
                      , containers
-                     , roles
+                     , roles >= 0.2
   default-language:    Haskell2010
 
 

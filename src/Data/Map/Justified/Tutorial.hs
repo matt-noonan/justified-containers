@@ -36,6 +36,8 @@ import qualified Data.Map as M
 import Data.Char (toUpper)
 import Control.Monad (forM_)
 
+import Data.Type.Coercion
+
 -- | A simple "Data.Map" value used in several examples below.
 --
 -- @

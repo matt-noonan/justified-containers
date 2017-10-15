@@ -21,6 +21,8 @@ import System.IO.Unsafe (unsafePerformIO)
 
 import Data.Map.Justified.Tutorial (adjacencies)
 
+import Data.Type.Coercion
+
 main :: IO ()
 main = hspec spec
 
