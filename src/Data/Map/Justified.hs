@@ -141,6 +141,7 @@ module Data.Map.Justified (
     -- * Gathering evidence
     , member
     , keys
+    , lookupMay
     , lookupLT
     , lookupLE
     , lookupGT
@@ -382,6 +383,12 @@ lookup :: Ord k => Key ph k -> Map ph k v -> v
 lookup (Key k) (Map m) = case M.lookup k m of
   Just value -> value
   Nothing    -> error "Data.Map.Justified has been subverted!"
+
+-- | /O(log n)/. Lookup the value at a key that is /not/ already known
+-- to be in the map. Return @Just@ the value /and/ the key-with-evidence
+-- if the key was present, or @Nothing@ otherwise.
+lookupMay :: Ord k => k -> Map ph k v -> Maybe (Key ph k, v)
+lookupMay k (Map m) = fmap (\v -> (Key k, v)) (M.lookup k m)
 
 -- | /O(log n)/. Find the largest key smaller than the given one
 -- and return the corresponding (key,value) pair, with evidence for the key.
