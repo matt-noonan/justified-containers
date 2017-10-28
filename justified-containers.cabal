@@ -1,5 +1,5 @@
 name:                justified-containers
-version:             0.2.0.0
+version:             0.2.0.1
 synopsis:            Keyed container types with type-checked proofs of key presence.
 description:         This package contains wrappers around standard container types,
                      that provide guarantees about the presence of keys within the

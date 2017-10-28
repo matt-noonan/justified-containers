@@ -117,7 +117,7 @@ spec = do
         
     it "does not allocate key copies when gathering key evidence" $ do
       withMap letters $ \m ->
-        each (M.keys letters) $ \k -> fromJust (k `member` m) `isLiterally` k
+        each (M.keys letters) $ \k -> (k `member` m) `isLiterallyJust` k
 
     it "does not allocate key copies when forgetting evidence" $ do
       withMap letters $ \m ->
@@ -134,15 +134,15 @@ spec = do
       withMap letters $ \m ->
         deleting 'X' m $ \(downgraded, m') ->
           each (keys m') $ \k -> downgraded k `isLiterally` k
-                                                     
+
     it "does not allocate values when performing lookup with a verified key" $ do
       withMap letters $ \m ->
         each (keys m) $ \k ->
-          (k `lookup` m) `isLiterally` fromJust (theKey k `M.lookup` letters)
+          (theKey k `M.lookup` theMap m) `isLiterallyJust` (k `lookup` m)
 
     it "does not allocate when verifying a recursive map" $ fromRight $ do
       withRecMap adjacencies $ \m -> m `isLiterally` adjacencies
-      
+
 -- | Test if two values occupy the same location in memory.
 --   This is almost certainly flaky, especially if a GC occurs
 --   during evaluation of ans!
@@ -151,6 +151,12 @@ isLiterally x y = unsafePerformIO $ do
   let x' = unsafeCoerce# y
   x `seq` x' `seq` performGC
   return $ I64# (reallyUnsafePtrEquality# x x') == 1
+{-# NOINLINE isLiterally #-}
+
+-- | Test if the lhs is Just (exactly the rhs). This is at least
+--   as flaky as 'isLiterally'.
+isLiterallyJust :: Maybe a -> b -> Bool
+isLiterallyJust x y = maybe False id (isLiterally <$> x <*> Just y)
 
 each :: Traversable t => t a -> (a -> Bool) -> Bool
 each = flip all
