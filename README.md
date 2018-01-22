@@ -95,7 +95,7 @@ all (or perhaps youll see the dreaded and unhelpful `*** Exception: Maybe.fromJu
 
 It is tempting to reach for partial functions or "impossible" runtime errors here, because
 the programmer has proven that the key is a member of the map in some other way. They
-know that lookup` should return a `Just v` --- but the *compiler* doesnt know this!
+know that `lookup` should return a `Just v` --- but the *compiler* doesnt know this!
 
 The idea behind `Data.Map.Justified` is to encode the programmers knowledge that a key
 is present *within the type system*, where it can be checked at compile-time. Once a key
