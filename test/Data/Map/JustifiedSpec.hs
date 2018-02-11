@@ -106,7 +106,17 @@ spec = do
       shouldNotTypecheck $
         withMap letters $ \m -> deleting 'X' m $
           \(_, _, m') -> map (`lookup` m') (keys m)
+
+  describe "indices" $ do
     
+    it "cannot be used as keys" $
+      shouldNotTypecheck $
+        withSingleton (17 :: Int) () $ \(k,m) -> m ! findIndex k m
+
+    it "cannot be used instead of keys" $
+      shouldNotTypecheck $
+        withSingleton (17 :: Int) () $ \(k,m) -> snd (elemAt k m)
+
   describe "at runtime" $ do
 
     it "does not allocate map copies when gathering evidence" $ do

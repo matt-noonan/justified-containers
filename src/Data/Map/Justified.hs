@@ -128,8 +128,10 @@ module Data.Map.Justified (
     -- * Map and Key types
       Map
     , Key
-    , theKey
+    , Index
     , theMap
+    , theKey
+    , theIndex
 
     -- * Evaluation
     , withMap
@@ -234,14 +236,29 @@ type role Map phantom nominal representational
 newtype Key ph k = Key k deriving (Eq, Ord, Show)
 type role Key phantom representational
 
+-- | An index that knows it is valid in certain @'Map'@s.
+--
+-- The evidence that the index is valid for a map is carried by
+-- the type system via the phantom type parameter @ph@. Indexing
+-- operations such as `elemAt` will only type-check if the @'Index'@
+-- and the @'Map'@ have the same phantom type parameter.
+newtype Index ph = Index Int deriving (Eq, Ord, Show)
+type role Index phantom
+
+-- | Get the underlying "Data.Map" @'Data.Map'@ out of a @'Map'@.
+theMap :: Map ph k v -> M.Map k v
+theMap (Map m) = m
+
 -- | Get a bare key out of a key-plus-evidence by forgetting
 -- what map the key can be found in.
 theKey :: Key ph k -> k
 theKey (Key k) = k
 
--- | Get the underlying "Data.Map" @'Data.Map'@ out of a @'Map'@.
-theMap :: Map ph k v -> M.Map k v
-theMap (Map m) = m
+-- | Get a bare index out of an index-plus-evidence by forgetting
+-- what map the index is valid for.
+theIndex :: Index ph -> Int
+theIndex (Index n) = n
+
 
 {--------------------------------------------------------------------
   Evaluation
@@ -797,16 +814,16 @@ zipWithKey f m1 m2 = mapWithKey (\k x -> f k x (m2 ! k)) m1
 --
 -- Unlike "Data.Map"'s @'Data.Map.findIndex'@, this function can not fail at runtime.
 
-findIndex :: Ord k => Key ph k -> Map ph k a -> Key ph Int
-findIndex (Key k) (Map m) = Key (M.findIndex k m)
+findIndex :: Ord k => Key ph k -> Map ph k a -> Index ph
+findIndex (Key k) (Map m) = Index (M.findIndex k m)
 
 -- | /O(log n)/. Retrieve an element by its /index/, i.e. by its zero-based
 -- index in the sequence sorted by keys.
 --
 -- Unlike "Data.Map"'s @'Data.Map.elemAt'@, this function can not fail at runtime.
 
-elemAt :: Key ph Int -> Map ph k v -> (Key ph k, v)
-elemAt (Key n) (Map m) = let (k,v) = M.elemAt n m in (Key k, v)
+elemAt :: Index ph -> Map ph k v -> (Key ph k, v)
+elemAt (Index n) (Map m) = let (k,v) = M.elemAt n m in (Key k, v)
 
 {--------------------------------------------------------------------
   Utilities
