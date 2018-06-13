@@ -226,7 +226,7 @@ indirectly: we'll *encode* existentially-quantified types, via *rank-2 universal
 
 The idea can be understood via the Curry-Howard correspondence:
 In classical logic, we have an equivalence between the propositions `∃X.P(X)`
-and `∀T. ((∀X.F(X) => T) => T)`.  It turns out that this equivalence remains valid
+and `∀T. ((∀X.P(X) => T) => T)`.  It turns out that this equivalence remains valid
 in constructive logic, so we can transport it via the Curry-Howard correspondence to get
 an isomorphism between types:
 
