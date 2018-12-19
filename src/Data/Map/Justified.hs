@@ -1,4 +1,7 @@
-{-# LANGUAGE RankNTypes, DeriveTraversable, ScopedTypeVariables, RoleAnnotations #-}
+{-# LANGUAGE DeriveTraversable   #-}
+{-# LANGUAGE RankNTypes          #-}
+{-# LANGUAGE RoleAnnotations     #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 -- |
 -- Module      :  Data.Map.Justified
 -- Copyright   :  (c) Matt Noonan 2017
@@ -26,7 +29,7 @@
 -- === Example
 -- @
 --  withMap test_table $ \\table -> do
---  
+--
 --    case member 1 table of
 --
 --      Nothing  -> putStrLn "Sorry, I couldn\'t prove that the key is present."
@@ -36,7 +39,7 @@
 --        -- We have proven that the key is present, and can now use it Maybe-free...
 --        putStrLn ("Found key: " ++ show key)
 --        putStrLn ("Value for key: " ++ lookup key table)
---  
+--
 --        -- ...even in certain other maps!
 --        let table\' = reinsert key "howdy" table
 --        putStrLn ("Value for key in updated map: " ++ lookup key table\')
@@ -148,7 +151,7 @@ module Data.Map.Justified (
     , lookupLE
     , lookupGT
     , lookupGE
-      
+
     -- * Safe lookup
     , lookup
     , (!)
@@ -167,8 +170,8 @@ module Data.Map.Justified (
     , zip
     , zipWith
     , zipWithKey
-      
-    -- * Enlarging key sets  
+
+    -- * Enlarging key sets
     -- ** Inserting new keys
     , inserting
     , insertingWith
@@ -194,7 +197,7 @@ module Data.Map.Justified (
     , mappingKnownKeys
     , mappingKeysWith
     , mappingKnownKeysWith
-      
+
     -- * Indexing
     , findIndex
     , elemAt
@@ -204,13 +207,13 @@ module Data.Map.Justified (
 
     ) where
 
-import Prelude hiding (lookup, zip, zipWith)
-import qualified Data.Map as M
-import Data.List (partition)
-import Control.Arrow ((&&&))
+import           Control.Arrow      ((&&&))
+import           Data.List          (partition)
+import qualified Data.Map           as M
+import           Prelude            hiding (lookup, zip, zipWith)
 
-import Data.Roles
-import Data.Type.Coercion
+import           Data.Roles
+import           Data.Type.Coercion
 
 {--------------------------------------------------------------------
   Map and Key types
@@ -225,16 +228,16 @@ import Data.Type.Coercion
 -- @'Map'@ allows you to shift the burden of proof that a key exists
 -- in a map from "prove at every lookup" to "prove once per key".
 newtype Map ph k v = Map (M.Map k v) deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
-type role Map phantom nominal representational
+type role Map nominal nominal representational
 
 -- | A key that knows it can be found in certain @'Map'@s.
--- 
+--
 -- The evidence that the key can be found in a map is carried by
 -- the type system via the phantom type parameter @ph@. Certain
 -- operations such as lookup will only type-check if the @'Key'@
 -- and the @'Map'@ have the same phantom type parameter.
 newtype Key ph k = Key k deriving (Eq, Ord, Show)
-type role Key phantom representational
+type role Key nominal representational
 
 -- | An index that knows it is valid in certain @'Map'@s.
 --
@@ -243,7 +246,7 @@ type role Key phantom representational
 -- operations such as `elemAt` will only type-check if the @'Index'@
 -- and the @'Map'@ have the same phantom type parameter.
 newtype Index ph = Index Int deriving (Eq, Ord, Show)
-type role Index phantom
+type role Index nominal
 
 -- | Get the underlying "Data.Map" @'Data.Map'@ out of a @'Map'@.
 theMap :: Map ph k v -> M.Map k v
@@ -332,9 +335,9 @@ withRecMap :: forall k f t . (Ord k, Traversable f, Representational f)
            -> Either [MissingReference k f] t -- ^ Resulting value, or failure report.
 
 withRecMap m cont =
-  
+
   case snd (partition (allKeysPresent . snd) $ M.toList m) of
-    
+
     -- All referenced keys are found in the map; coerce the map's type.
     []   -> Right $ cont (Map $ (coerceWith mapCoercion) m)
 
@@ -346,10 +349,10 @@ withRecMap m cont =
     allKeysPresent = all ((== Present) . locate)
 
     locate k = if M.member k m then Present else Missing
-    
+
     nestedValueCoercion :: Coercion (f k) (f (Key ph0 k))
     nestedValueCoercion = rep Coercion
-    
+
     mapCoercion :: Coercion (M.Map k (f k)) (M.Map k (f (Key ph0 k)))
     mapCoercion = rep nestedValueCoercion
 
@@ -532,7 +535,7 @@ insertingWith f k v m cont = cont (Key k, qed, mmap (M.insertWith f k v) m)
 --      in the /original/ map. (contrast with 'inserting')
 --
 --   2. The updated map itself.
---        
+--
 deleting :: Ord k
          => k  -- ^ key to remove
          -> Map ph k v -- ^ initial map
@@ -550,7 +553,7 @@ deleting k m cont = cont (qed, mmap (M.delete k) m)
 --      in the original left-hand map.
 --
 --   2. The updated map itself.
---        
+--
 subtracting :: Ord k
             => Map phL k a -- ^ the left-hand map
             -> Map phR k b -- ^ the right-hand map
@@ -631,7 +634,7 @@ filteringWithKey :: (Key ph k -> v -> Bool) -- ^ predicate on keys and values
                  -> (forall ph'. (Key ph' k -> Key ph k, Map ph' k v) -> t) -- ^ continuation
                  -> t
 filteringWithKey f m cont = cont (qed, mmap (M.filterWithKey (f . Key)) m)
-  
+
 {--------------------------------------------------------------------
   Mapping and traversing
 --------------------------------------------------------------------}
@@ -652,7 +655,7 @@ traverseWithKey :: Applicative t
                 -> t (Map ph k b)
 traverseWithKey f (Map m) = fmap Map (M.traverseWithKey f' m)
   where f' k = f (Key k)
-        
+
 -- | /O(n)/. The function @'mapAccum'@ threads an accumulating
 -- argument through the map in ascending order of keys.
 --
@@ -671,7 +674,7 @@ mapAccumWithKey :: (a -> Key ph k -> b -> (a,c))
                 -> (a, Map ph k c)
 mapAccumWithKey f a (Map m) = fmap Map (M.mapAccumWithKey f' a m)
   where f' x k = f x (Key k)
-        
+
 -- | /O(n*log n)/.
 -- @'mappingKeys'@ evaluates a continuation with the map obtained by applying
 -- @f@ to each key of @s@.
@@ -706,7 +709,7 @@ mappingKnownKeys :: Ord k2
             -> t
 mappingKnownKeys f m cont = cont (Key . f, mmap (M.mapKeys f') m)
   where f' k = f (Key k)
-        
+
 -- | /O(n*log n)/.
 -- Same as @'mappingKeys'@, except a function is used to combine values when
 -- two or more keys from the original map correspond to the same key in the
@@ -731,7 +734,7 @@ mappingKnownKeysWith :: Ord k2
                 -> t
 mappingKnownKeysWith op f m cont = cont (Key . f, mmap (M.mapKeysWith op f') m)
   where f' k = f (Key k)
-        
+
 {--------------------------------------------------------------------
   Intersections
 --------------------------------------------------------------------}
@@ -803,7 +806,7 @@ zipWithKey :: Ord k
            -> Map ph k b
            -> Map ph k c
 zipWithKey f m1 m2 = mapWithKey (\k x -> f k x (m2 ! k)) m1
-        
+
 {--------------------------------------------------------------------
   Indexing
 --------------------------------------------------------------------}
