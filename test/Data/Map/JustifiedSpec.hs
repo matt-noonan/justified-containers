@@ -41,9 +41,9 @@ spec = do
     it "wraps the underlying Data.Map.Map without modification" $ do
       withMap letters theMap == letters
 
-    it "can create singleton maps" $ property $ do
-      \(k :: Int, v :: Int) -> withSingleton k v (uncurry lookup) == v
-      \(k :: Int, v :: Int) -> withSingleton k v (theMap . snd)   == M.fromList [(k,v)]
+    it "can create singleton maps" $ property $ \(k :: Int, v :: Int) ->
+         withSingleton k v (uncurry lookup) == v
+      && withSingleton k v (theMap . snd)   == M.fromList [(k,v)]
       
   describe "validated keys" $ do
     
